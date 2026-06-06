@@ -30,16 +30,6 @@ start StrafeClient.exe
 ```
 *(Você também pode simplesmente abrir a pasta `Publish` no Explorador de Arquivos e dar dois cliques no `StrafeClient.exe`)*
 
-## Como compilar (Para Desenvolvedores)
-
-```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/strafeclient-launcher.git
-cd strafeclient-launcher
-
-# Compile e rode via .NET
-dotnet run
-```
 
 ## Estrutura
 
