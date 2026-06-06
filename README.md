@@ -21,7 +21,7 @@ Launcher customizado de Minecraft feito em **C# / WinForms com WebView2**. Inter
 
 ```bash
 # 1. Clone o repositório no seu computador
-git clone https://github.com/seu-usuario/strafeclient-launcher.git
+git clone https://github.com/d9light/strafeclient-launcher.git
 cd strafeclient-launcher
 
 # 2. Vá para a pasta Publish e execute o jogo
@@ -60,7 +60,7 @@ StrafeClient/
 
 ## API Backend
 
-Este launcher se comunica com a [Strafe Client API](https://github.com/seu-usuario/brlaucher-api) hospedada na Vercel.
+Este launcher se comunica com a [Strafe Client API] hospedada na Vercel.
 
 ## Tecnologias
 
