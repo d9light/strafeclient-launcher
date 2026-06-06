@@ -1,4 +1,4 @@
-﻿document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // ==========================================
 
@@ -656,7 +656,16 @@
     // Update UI
     const updateModal = document.getElementById('update-modal');
     const updateNotes = document.getElementById('update-notes');
+    const updateVersionInfo = document.getElementById('update-version-info');
+    const updateProgressWrapper = document.getElementById('update-progress-wrapper');
+    const updateProgressBar = document.getElementById('update-progress-bar');
+    const updateProgressPct = document.getElementById('update-progress-pct');
+    const updateProgressLabel = document.getElementById('update-progress-label');
     const btnCloseUpdate = document.getElementById('btn-close-update');
+    const btnUpdateNow = document.getElementById('btn-update-now');
+    const btnUpdateLater = document.getElementById('btn-update-later');
+    let _pendingUpdateUrl = null;
+
 
     // Local Mods UI
     const localModsModal = document.getElementById('local-mods-modal');
@@ -1296,9 +1305,30 @@
                 else if (data.type === 'accounts') {
                     renderAccounts(data.list, data.activeId);
                 }
-                else if (data.type === 'updateStatus' && data.hasUpdate) {
-                    updateNotes.innerText = data.notes;
+                else if (data.type === 'updateAvailable') {
+                    // Preenche o modal com os dados da versão
+                    _pendingUpdateUrl = data.url;
+                    updateVersionInfo.textContent = `v${data.currentVersion} → v${data.version}`;
+                    updateNotes.textContent = data.notes || 'Nenhuma nota de versão disponível.';
+                    updateProgressWrapper.style.display = 'none';
+                    if (btnUpdateNow) { btnUpdateNow.disabled = false; btnUpdateNow.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Atualizar Agora'; }
+                    if (btnUpdateLater) btnUpdateLater.disabled = false;
                     updateModal.classList.remove('hidden');
+                }
+                else if (data.type === 'downloadProgress') {
+                    updateProgressWrapper.style.display = 'block';
+                    updateProgressBar.style.width = data.percent + '%';
+                    updateProgressPct.textContent = data.percent + '%';
+                }
+                else if (data.type === 'downloadComplete') {
+                    updateProgressBar.style.width = '100%';
+                    updateProgressPct.textContent = '100%';
+                    updateProgressLabel.textContent = 'Reiniciando o Strafe Client...';
+                    if (btnUpdateNow) { btnUpdateNow.disabled = true; btnUpdateNow.textContent = 'Reiniciando...'; }
+                    if (btnUpdateLater) btnUpdateLater.disabled = true;
+                }
+                else if (data.type === 'updateStatus') {
+                    // Sem atualização disponível — não faz nada (não mostra modal)
                 }
                 else if (data.type === 'modpackResults') {
                     renderModResults('mods-results-grid', data.results, 'modpack');
@@ -1312,12 +1342,27 @@
             } catch (e) { console.error("Erro", e); }
         });
 
-        // Initial requests
+        // Requisições iniciais ao C#
         window.chrome.webview.postMessage(JSON.stringify({ action: 'getAccounts' }));
         window.chrome.webview.postMessage(JSON.stringify({ action: 'getVersions' }));
         window.chrome.webview.postMessage(JSON.stringify({ action: 'getSystemInfo' }));
         window.chrome.webview.postMessage(JSON.stringify({ action: 'getInstances' }));
-        window.chrome.webview.postMessage(JSON.stringify({ action: 'checkForUpdates' }));
+        
+        // Event listeners para atualização
+        if (btnUpdateNow) {
+            btnUpdateNow.addEventListener('click', () => {
+                if (_pendingUpdateUrl) {
+                    window.chrome.webview.postMessage(JSON.stringify({ action: 'downloadUpdate', url: _pendingUpdateUrl }));
+                    btnUpdateNow.disabled = true;
+                    btnUpdateNow.textContent = 'Baixando...';
+                }
+            });
+        }
+        if (btnUpdateLater) {
+            btnUpdateLater.addEventListener('click', () => {
+                updateModal.classList.add('hidden');
+            });
+        }
     }
 
     // ==========================================

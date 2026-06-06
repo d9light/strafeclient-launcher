@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Linq;
 using System.IO;
@@ -74,6 +74,28 @@ namespace StrafeClient
 
             // Evento para receber mensagens do JavaScript
             webView.CoreWebView2.WebMessageReceived += WebView_WebMessageReceived;
+
+            // Verificação automática de atualização após a página carregar
+            webView.CoreWebView2.NavigationCompleted += async (s, args) =>
+            {
+                if (!args.IsSuccess) return;
+                var update = await UpdateManager.CheckAsync();
+                if (update != null)
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        var msg = new
+                        {
+                            type = "updateAvailable",
+                            version = update.Versao,
+                            url = update.Url,
+                            notes = update.Notas,
+                            currentVersion = UpdateManager.VERSAO_ATUAL
+                        };
+                        webView.CoreWebView2.PostWebMessageAsString(System.Text.Json.JsonSerializer.Serialize(msg));
+                    }));
+                }
+            };
         }
 
         private async void WebView_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
@@ -613,8 +635,74 @@ namespace StrafeClient
                     }
                     else if (action == "checkForUpdates")
                     {
-                        var msg = new { type = "updateStatus", hasUpdate = false, latestVersion = "1.1.0", notes = "- Suporte Completo a Instâncias\n- Auto-Instalador do Fabric\n- Nova Interface UX" };
-                        webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(msg));
+                        // Verificação manual de atualização (botão no UI)
+                        Task.Run(async () =>
+                        {
+                            var update = await UpdateManager.CheckAsync();
+                            this.Invoke(new Action(() =>
+                            {
+                                object msg;
+                                if (update != null)
+                                {
+                                    msg = new
+                                    {
+                                        type = "updateAvailable",
+                                        version = update.Versao,
+                                        url = update.Url,
+                                        notes = update.Notas,
+                                        currentVersion = UpdateManager.VERSAO_ATUAL
+                                    };
+                                }
+                                else
+                                {
+                                    msg = new { type = "updateStatus", hasUpdate = false, currentVersion = UpdateManager.VERSAO_ATUAL };
+                                }
+                                webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(msg));
+                            }));
+                        });
+                    }
+                    else if (action == "downloadUpdate")
+                    {
+                        string updateUrl = root.GetProperty("url").GetString() ?? "";
+                        if (string.IsNullOrEmpty(updateUrl)) return;
+
+                        Task.Run(async () =>
+                        {
+                            // Envia progresso para o WebView
+                            string? newExePath = await UpdateManager.DownloadAsync(updateUrl, percent =>
+                            {
+                                this.Invoke(new Action(() =>
+                                {
+                                    var p = new { type = "downloadProgress", percent };
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(p));
+                                }));
+                            });
+
+                            this.Invoke(new Action(() =>
+                            {
+                                if (newExePath != null)
+                                {
+                                    // Download OK — aplica update e fecha o app
+                                    var doneMsg = new { type = "downloadComplete" };
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(doneMsg));
+
+                                    // Pequeno delay para o JS mostrar "Reiniciando..."
+                                    System.Threading.Tasks.Task.Delay(1500).ContinueWith(_ =>
+                                    {
+                                        this.Invoke(new Action(() =>
+                                        {
+                                            UpdateManager.ApplyUpdate(newExePath);
+                                            Application.Exit();
+                                        }));
+                                    });
+                                }
+                                else
+                                {
+                                    var errMsg = new { type = "error", text = "Falha ao baixar atualização. Tente novamente." };
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(errMsg));
+                                }
+                            }));
+                        });
                     }
                     else if (action == "openInstanceFolder")
                     {

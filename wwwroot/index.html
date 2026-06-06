@@ -477,10 +477,50 @@
     </div>
 
     <!-- Update Modal -->
-    <div id="update-modal" class="update-toast hidden">
-        <h3>Atualização Disponível!</h3>
-        <p id="update-notes"></p>
-        <button id="btn-close-update" class="btn-play-massive" style="width: 100%; padding: 8px; font-size: 1rem; background: #fff; color: #000;">Legal!</button>
+    <div id="update-modal" class="modal hidden">
+        <div class="modal-content glass-panel" style="max-width:480px; width:90%;">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-subtle); padding-bottom:16px; margin-bottom:20px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:40px; height:40px; border-radius:10px; background:linear-gradient(135deg,var(--accent-violet),#7c3aed); display:flex; align-items:center; justify-content:center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                    </div>
+                    <div>
+                        <h2 style="font-size:1.1rem; margin:0;">Atualização Disponível</h2>
+                        <p id="update-version-info" style="font-size:0.8rem; color:var(--text-secondary); margin:0;">v1.0.0 → v1.1.0</p>
+                    </div>
+                </div>
+                <button id="btn-close-update" class="win-btn win-close" style="width:auto; height:auto; padding:6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Notas da versão -->
+                <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:14px; margin-bottom:20px; max-height:120px; overflow-y:auto;">
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:6px;">O QUE HÁ DE NOVO</p>
+                    <p id="update-notes" style="font-size:0.9rem; color:var(--text-primary); white-space:pre-line; line-height:1.6;"></p>
+                </div>
+
+                <!-- Barra de progresso (oculta até iniciar download) -->
+                <div id="update-progress-wrapper" style="display:none; margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span id="update-progress-label" style="font-size:0.85rem; color:var(--text-secondary);">Baixando...</span>
+                        <span id="update-progress-pct" style="font-size:0.85rem; color:var(--accent-violet); font-weight:600;">0%</span>
+                    </div>
+                    <div style="height:6px; background:var(--bg-card); border-radius:3px; overflow:hidden;">
+                        <div id="update-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg,var(--accent-violet),#a78bfa); border-radius:3px; transition:width 0.3s ease;"></div>
+                    </div>
+                </div>
+
+                <!-- Botões -->
+                <div style="display:flex; gap:10px;">
+                    <button id="btn-update-later" class="btn-secondary" style="flex:1;">Agora Não</button>
+                    <button id="btn-update-now" class="btn-premium login-btn" style="flex:2; padding:12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                        Atualizar Agora
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Local Mods Modal -->
