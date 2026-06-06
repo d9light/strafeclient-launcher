@@ -1,4 +1,4 @@
-﻿# Strafe Client — Launcher
+# Strafe Client — Launcher
 
 Launcher customizado de Minecraft feito em **C# / WinForms com WebView2**. Interface construída em HTML/CSS/JavaScript e renderizada dentro do app nativo.
 
@@ -17,14 +17,27 @@ Launcher customizado de Minecraft feito em **C# / WinForms com WebView2**. Inter
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
 - [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
 
-## Como compilar
+## Como jogar (Para Jogadores)
+
+```bash
+# 1. Clone o repositório no seu computador
+git clone https://github.com/seu-usuario/strafeclient-launcher.git
+cd strafeclient-launcher
+
+# 2. Vá para a pasta Publish e execute o jogo
+cd Publish
+start StrafeClient.exe
+```
+*(Você também pode simplesmente abrir a pasta `Publish` no Explorador de Arquivos e dar dois cliques no `StrafeClient.exe`)*
+
+## Como compilar (Para Desenvolvedores)
 
 ```bash
 # Clone o repositório
 git clone https://github.com/seu-usuario/strafeclient-launcher.git
 cd strafeclient-launcher
 
-# Compile e rode
+# Compile e rode via .NET
 dotnet run
 ```
 

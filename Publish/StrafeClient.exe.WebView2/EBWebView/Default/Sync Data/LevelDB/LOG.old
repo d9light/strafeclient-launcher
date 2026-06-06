@@ -1,0 +1,4 @@
+2026/06/06-00:55:09.596 b98 Creating DB C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\Sync Data\LevelDB since it was missing.
+2026/06/06-00:55:09.615 b98 Reusing MANIFEST C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\Sync Data\LevelDB/MANIFEST-000001
+2026/06/06-00:55:09.616 b98 Recovering log #3
+2026/06/06-00:55:09.616 b98 Reusing old log C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\Sync Data\LevelDB/000003.log 

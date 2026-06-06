@@ -1,0 +1,4 @@
+2026/06/06-01:08:00.841 7e50 Creating DB C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\shared_proto_db since it was missing.
+2026/06/06-01:08:00.849 7e50 Reusing MANIFEST C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\shared_proto_db/MANIFEST-000001
+2026/06/06-01:08:00.849 7e50 Recovering log #3
+2026/06/06-01:08:00.850 7e50 Reusing old log C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\shared_proto_db/000003.log 
