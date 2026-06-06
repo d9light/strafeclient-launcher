@@ -1,0 +1,42 @@
+# ==========================================
+# BUILD / COMPILAÇÃO
+# ==========================================
+bin/
+obj/
+out/
+Publish/
+bin_build/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# ==========================================
+# VISUAL STUDIO
+# ==========================================
+.vs/
+*.rsuser
+*.VC.db
+*.VC.opendb
+.idea/
+
+# ==========================================
+# INSTÂNCIAS DO MINECRAFT (DADOS LOCAIS)
+# ==========================================
+Instances/
+
+# ==========================================
+# LOGS E TEMPORÁRIOS
+# ==========================================
+*.log
+*.tmp
+crash-reports/
+
+# ==========================================
+# SEGREDOS (caso existam)
+# ==========================================
+.env
+appsettings.*.json
+!appsettings.json
+secrets.json
