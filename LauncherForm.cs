@@ -49,6 +49,11 @@ namespace StrafeClient
             // Fundo escuro enquanto carrega o WebView
             this.BackColor = System.Drawing.Color.FromArgb(13, 13, 18);
 
+            // Ícone do app (taskbar, alt-tab, janela)
+            string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "strafe.ico");
+            if (File.Exists(iconPath))
+                this.Icon = new System.Drawing.Icon(iconPath);
+
             InitializeWebView();
         }
 
