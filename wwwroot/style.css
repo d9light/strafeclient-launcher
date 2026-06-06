@@ -1,4 +1,4 @@
-﻿* {
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -808,7 +808,7 @@ select.version-select optgroup { background: var(--bg-deep); color: var(--text-s
     background: rgba(255, 255, 255, 0.05);
 }
 
-.account-type.brapi {
+.account-type.strafe-api {
     color: var(--accent-blue);
     background: rgba(139, 92, 246, 0.1);
 }

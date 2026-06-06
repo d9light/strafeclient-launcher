@@ -1,4 +1,4 @@
-# Strafe Client — Launcher
+﻿# Strafe Client — Launcher
 
 Launcher customizado de Minecraft feito em **C# / WinForms com WebView2**. Interface construída em HTML/CSS/JavaScript e renderizada dentro do app nativo.
 
@@ -31,7 +31,7 @@ dotnet run
 ## Estrutura
 
 ```
-BrLauncher/
+StrafeClient/
 ├── LauncherForm.cs          # Janela principal e lógica central
 ├── AccountManager.cs        # Gerenciamento de contas
 ├── InstanceManager.cs       # Criação e gerenciamento de instâncias

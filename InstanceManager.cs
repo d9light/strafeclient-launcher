@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,7 +6,7 @@ using System.Security;
 using System.Text.Json;
 using CmlLib.Core;
 
-namespace BrLauncher
+namespace StrafeClient
 {
     public class InstanceInfo
     {

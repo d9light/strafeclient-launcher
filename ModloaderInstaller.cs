@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace BrLauncher
+namespace StrafeClient
 {
     public static class ModloaderInstaller
     {

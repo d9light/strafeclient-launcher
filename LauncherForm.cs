@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Linq;
 using System.IO;
@@ -14,7 +14,7 @@ using CmlLib.Core.Auth;
 using System.Diagnostics;
 using CmlLib.Core.ProcessBuilder;
 
-namespace BrLauncher
+namespace StrafeClient
 {
     public class LauncherForm : Form
     {
@@ -37,7 +37,7 @@ namespace BrLauncher
         {
             // [SECURITY FIX HIGH-4] REMOVIDO: delete de cache do WebView2 em produção
             // era código de desenvolvimento e cria race condition + symlink attack vector.
-            this.Text = "BR Launcher";
+            this.Text = "Strafe Client";
             this.Width = 1100;
             this.Height = 700;
             this.MinimumSize = new System.Drawing.Size(900, 600);
@@ -163,8 +163,8 @@ namespace BrLauncher
                         string nick = root.GetProperty("nick").GetString();
                         string token = root.TryGetProperty("token", out var tokenProp) ? tokenProp.GetString() : "";
                         
-                        // Salva a conta como BrLauncherAPI
-                        AccountManager.AddBrLauncherAccount(nick, token);
+                        // Salva a conta como StrafeAPI
+                        AccountManager.AddStrafeAccount(nick, token);
                         
                         // Atualiza as contas no front
                         var msg = new { type = "accounts", list = AccountManager.GetAccounts(), activeId = AccountManager.GetActiveAccount()?.Id };
@@ -706,7 +706,7 @@ namespace BrLauncher
                     SendStatusToWeb("Buscando versão compatível do CustomSkinLoader na Modrinth...");
                     using (var client = new HttpClient())
                     {
-                        client.DefaultRequestHeaders.Add("User-Agent", "BrLauncher/1.0");
+                        client.DefaultRequestHeaders.Add("User-Agent", "StrafeClient/1.0");
                         string apiUrl = $"https://api.modrinth.com/v2/project/customskinloader/version?game_versions=[\"{mcVersion}\"]&loaders=[\"{loader}\"]";
                         var responseStr = await client.GetStringAsync(apiUrl);
                         
@@ -1183,7 +1183,7 @@ namespace BrLauncher
                     @"(-javaagent:[^\s]+)=""[^""]+""",
                     "$1=[REDACTED]");
                 System.IO.File.WriteAllText(logPath,
-                    $"=== BR LAUNCHER LAUNCH LOG ===\n" +
+                    $"=== STRAFE CLIENT LAUNCH LOG ===\n" +
                     $"Data: {DateTime.Now}\n" +
                     $"Nick: {username}\n" +
                     $"Versao: {versaoAlvo}\n" +

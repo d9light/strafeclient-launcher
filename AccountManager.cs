@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CmlLib.Core.Auth;
 // removed using statements
-namespace BrLauncher
+namespace StrafeClient
 {
     public class AccountInfo
     {
@@ -30,7 +30,7 @@ namespace BrLauncher
     {
         private static readonly string AccountsFilePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "BrLauncher",
+            "StrafeClient",
             "accounts.json"
         );
 
@@ -179,10 +179,10 @@ namespace BrLauncher
             }
         }
 
-        public static void AddBrLauncherAccount(string username, string token = "")
+        public static void AddStrafeAccount(string username, string token = "")
         {
             // Check if already exists
-            var existing = data.Accounts.FirstOrDefault(a => a.Username.Equals(username, StringComparison.OrdinalIgnoreCase) && a.Type == "BrLauncherAPI");
+            var existing = data.Accounts.FirstOrDefault(a => a.Username.Equals(username, StringComparison.OrdinalIgnoreCase) && a.Type == "StrafeAPI");
             if (existing == null)
             {
                 string newId = Guid.NewGuid().ToString();
@@ -190,7 +190,7 @@ namespace BrLauncher
                 {
                     Id = newId,
                     Username = username,
-                    Type = "BrLauncherAPI", // Representa a conta premium do próprio launcher
+                    Type = "StrafeAPI", // Representa a conta premium do próprio launcher
                     Token = token
                 });
                 data.ActiveAccountId = newId;

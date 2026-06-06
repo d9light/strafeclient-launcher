@@ -4,6 +4,10 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net5.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>StrafeClient</AssemblyName>
+    <RootNamespace>StrafeClient</RootNamespace>
+    <Product>Strafe Client</Product>
+    <Company>Strafe Client</Company>
   </PropertyGroup>
 
   <ItemGroup>

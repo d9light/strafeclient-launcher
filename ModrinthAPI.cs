@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace BrLauncher
+namespace StrafeClient
 {
     public class ModrinthAPI
     {
@@ -15,7 +15,7 @@ namespace BrLauncher
         
         static ModrinthAPI()
         {
-            client.DefaultRequestHeaders.Add("User-Agent", "BrLauncher/1.0 (contact@brlauncher.com)");
+            client.DefaultRequestHeaders.Add("User-Agent", "StrafeClient/1.0 (contact@brlauncher.com)");
         }
 
         public static async Task<string> SearchModpacksAsync(string query)

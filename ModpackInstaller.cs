@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 
-namespace BrLauncher
+namespace StrafeClient
 {
     public class ModpackInstaller
     {
@@ -16,7 +16,7 @@ namespace BrLauncher
 
         static ModpackInstaller()
         {
-            client.DefaultRequestHeaders.Add("User-Agent", "BrLauncher/1.0 (contact@brlauncher.com)");
+            client.DefaultRequestHeaders.Add("User-Agent", "StrafeClient/1.0 (contact@brlauncher.com)");
         }
 
         public static async Task<string> InstallModpackAsync(string projectId, string slug, Action<int, string> progressCallback)
