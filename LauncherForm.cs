@@ -1079,6 +1079,7 @@ namespace StrafeClient
                         Username = activeAcc.Username, 
                         AccessToken = activeAcc.Token, 
                         UUID = activeAcc.UUID,
+                        ClientToken = Guid.NewGuid().ToString("N"),
                         UserType = "msa"
                     };
                 }

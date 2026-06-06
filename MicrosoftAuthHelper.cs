@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
@@ -83,11 +83,12 @@ namespace StrafeClient
             var xstsRes = await client.PostAsync("https://xsts.auth.xboxlive.com/xsts/authorize", xstsContent);
             var xstsJson = JsonDocument.Parse(await xstsRes.Content.ReadAsStringAsync());
             string xstsToken = xstsJson.RootElement.GetProperty("Token").GetString();
+            string xuid = xstsJson.RootElement.GetProperty("DisplayClaims").GetProperty("xui")[0].GetProperty("uhs").GetString();
 
             // 5. Minecraft Auth
             var mcReq = new
             {
-                identityToken = $"XBL3.0 x={uhs};{xstsToken}"
+                identityToken = "XBL3.0 x=" + xuid + ";" + xstsToken
             };
             var mcContent = new StringContent(JsonSerializer.Serialize(mcReq), Encoding.UTF8, "application/json");
             var mcRes = await client.PostAsync("https://api.minecraftservices.com/authentication/login_with_xbox", mcContent);
@@ -101,6 +102,12 @@ namespace StrafeClient
             var profileJson = JsonDocument.Parse(await profileRes.Content.ReadAsStringAsync());
             string uuid = profileJson.RootElement.GetProperty("id").GetString();
             string name = profileJson.RootElement.GetProperty("name").GetString();
+            
+            // Format UUID with dashes as required by the game client
+            if (uuid.Length == 32)
+            {
+                uuid = $"{uuid.Substring(0, 8)}-{uuid.Substring(8, 4)}-{uuid.Substring(12, 4)}-{uuid.Substring(16, 4)}-{uuid.Substring(20)}";
+            }
 
             return new MSession
             {

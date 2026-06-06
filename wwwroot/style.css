@@ -813,6 +813,11 @@ select.version-select optgroup { background: var(--bg-deep); color: var(--text-s
     background: rgba(139, 92, 246, 0.1);
 }
 
+.account-type.microsoft {
+    color: #10B981; /* Green color for authentic Microsoft accounts */
+    background: rgba(16, 185, 129, 0.1);
+}
+
 .btn-delete-account {
     background: none;
     border: 1px solid transparent;
