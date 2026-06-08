@@ -32,7 +32,7 @@ namespace StrafeClient
         // Incremente isso ANTES de compilar e criar a release no GitHub.
         // Ex: se criar a release com tag "v1.0.1", coloque "1.0.1" aqui.
         // ============================================================
-        public const string VERSAO_ATUAL = "1.0.1";
+        public const string VERSAO_ATUAL = "1.0.2";
 
         // ============================================================
         // Repositório do GitHub — altere se mudar o repo

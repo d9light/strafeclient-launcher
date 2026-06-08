@@ -459,9 +459,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTopBar(activeAcc || null);
         
         if (!activeAcc) {
-            if (skinViewer) skinViewer.loadSkin("https://minotar.net/skin/Steve").catch(() => {});
+            if (skinViewer) {
+                skinViewer.loadSkin("https://minotar.net/skin/Steve").catch(() => {});
+                skinViewer.loadCape(null);
+            }
             const uploadContainer = document.getElementById('skin-upload-container');
+            const capeUploadContainer = document.getElementById('cape-upload-container');
             if (uploadContainer) uploadContainer.style.display = 'none';
+            if (capeUploadContainer) capeUploadContainer.style.display = 'none';
         }
 
         list.forEach(acc => {
@@ -507,21 +512,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (skinViewer) {
                     if (isApi) {
                         const vercelSkin = `https://brlaucher-api.vercel.app/api/skin/procurar/${acc.Username}`;
+                        const vercelCapa = `https://brlaucher-api.vercel.app/api/capa/procurar/${acc.Username}`;
                         skinViewer.loadSkin(vercelSkin).catch(() => {
                             skinViewer.loadSkin(skinUrl).catch(() => {});
                         });
+                        skinViewer.loadCape(vercelCapa).catch(() => {
+                            skinViewer.loadCape(null);
+                        });
                     } else {
                         skinViewer.loadSkin(skinUrl).catch(() => {});
+                        skinViewer.loadCape(null);
                     }
                 }
                 
                 const uploadContainer = document.getElementById('skin-upload-container');
+                const capeUploadContainer = document.getElementById('cape-upload-container');
                 if (uploadContainer) {
                     if (isApi) {
                         uploadContainer.style.display = 'flex';
                         uploadContainer.dataset.nick = acc.Username;
+                        if (capeUploadContainer) {
+                            capeUploadContainer.style.display = 'flex';
+                            capeUploadContainer.dataset.nick = acc.Username;
+                        }
                     } else {
                         uploadContainer.style.display = 'none';
+                        if (capeUploadContainer) capeUploadContainer.style.display = 'none';
                     }
                 }
             }
@@ -1969,14 +1985,33 @@ document.addEventListener('DOMContentLoaded', () => {
         skinUploadInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            selectedSkinFile = file;
             const reader = new FileReader();
             reader.onload = (event) => {
-                if (skinViewer) {
-                    skinViewer.loadSkin(event.target.result).catch(err => console.error("Erro preview:", err));
-                }
-                btnUploadSkin.innerText = file.name;
-                btnConfirmUpload.style.display = 'block';
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width;
+                    let h = img.height;
+                    // Garante que é quadrado ou retangular 2:1 (fallback)
+                    if (w !== h && w !== h * 2) {
+                        w = 64; h = 64;
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    
+                    canvas.toBlob((blob) => {
+                        selectedSkinFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".png", { type: "image/png" });
+                        const newUrl = URL.createObjectURL(blob);
+                        if (skinViewer) {
+                            skinViewer.loadSkin(newUrl).catch(err => console.error("Erro preview skin:", err));
+                        }
+                        btnUploadSkin.innerText = selectedSkinFile.name;
+                        btnConfirmUpload.style.display = 'block';
+                    }, 'image/png');
+                };
+                img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         });
@@ -2014,6 +2049,108 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 btnConfirmUpload.innerText = originalText;
                 btnConfirmUpload.disabled = false;
+            }
+        });
+    }
+
+    // ==========================================
+    // CAPE UPLOAD LOGIC
+    // ==========================================
+    const btnUploadCape = document.getElementById('btn-upload-cape');
+    const capeUploadInput = document.getElementById('cape-upload-input');
+    const btnConfirmUploadCape = document.getElementById('btn-confirm-upload-cape');
+    const capeUploadContainer = document.getElementById('cape-upload-container');
+    let selectedCapeFile = null;
+
+    if (btnUploadCape && capeUploadInput && btnConfirmUploadCape) {
+        btnUploadCape.addEventListener('click', () => capeUploadInput.click());
+
+        capeUploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    let finalWidth = img.width;
+                    let finalHeight = img.height;
+                    
+                    // OptiFine para Vanilla
+                    if (img.width % 46 === 0 && img.height % 22 === 0) {
+                        let scale = img.width / 46;
+                        finalWidth = 64 * scale;
+                        finalHeight = 32 * scale;
+                    } else if (img.width === 22 && img.height === 17) {
+                        finalWidth = 64;
+                        finalHeight = 32;
+                    } else if (img.width !== img.height * 2) {
+                        finalWidth = 64;
+                        finalHeight = 32; // Fallback
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = finalWidth;
+                    canvas.height = finalHeight;
+                    const ctx = canvas.getContext('2d');
+                    
+                    if (img.width % 46 === 0 && img.height % 22 === 0) {
+                        ctx.drawImage(img, 0, 0); // OptiFine alinha no topo esquerdo (0,0) perfeitamente com UV Vanilla
+                    } else {
+                        ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
+                    }
+
+                    canvas.toBlob((blob) => {
+                        selectedCapeFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".png", { type: "image/png" });
+                        const newUrl = URL.createObjectURL(blob);
+                        if (skinViewer) {
+                            skinViewer.loadCape(newUrl).catch(err => console.error("Erro preview capa:", err));
+                        }
+                        btnUploadCape.innerText = selectedCapeFile.name;
+                        btnConfirmUploadCape.style.display = 'block';
+                    }, 'image/png');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        btnConfirmUploadCape.addEventListener('click', async () => {
+            if (!selectedCapeFile) return;
+            const nick = capeUploadContainer.dataset.nick;
+            if (!nick) return showToast("Nick nao encontrado.", "error");
+
+            const originalText = btnConfirmUploadCape.innerText;
+            btnConfirmUploadCape.innerText = "Enviando...";
+            btnConfirmUploadCape.disabled = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('capa', selectedCapeFile);
+                formData.append('nick', nick);
+
+                const response = await fetch('https://brlaucher-api.vercel.app/api/capa/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    showToast("Capa atualizada com sucesso!", "success");
+                    btnConfirmUploadCape.style.display = 'none';
+                    btnUploadCape.innerText = "Selecionar Nova Capa";
+                    selectedCapeFile = null;
+                } else {
+                    const text = await response.text().catch(() => '');
+                    let errData = {};
+                    try { errData = JSON.parse(text); } catch (e) {}
+                    const msg = errData.error || errData.mensagem || 'Falha no upload (' + response.status + '): ' + text.substring(0, 30);
+                    showToast(msg, "error");
+                    console.error('Capa upload error:', response.status, text);
+                }
+            } catch (err) {
+                showToast("Erro de conexao: " + err.message, "error");
+            } finally {
+                btnConfirmUploadCape.innerText = originalText;
+                btnConfirmUploadCape.disabled = false;
             }
         });
     }

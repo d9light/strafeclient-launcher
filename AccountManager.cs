@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
@@ -157,8 +157,12 @@ namespace StrafeClient
 
         public static void Logout()
         {
-            data.ActiveAccountId = null;
-            SaveAccounts();
+            if (!string.IsNullOrEmpty(data.ActiveAccountId))
+            {
+                data.Accounts.RemoveAll(a => a.Id == data.ActiveAccountId);
+                data.ActiveAccountId = null;
+                SaveAccounts();
+            }
         }
 
         public static void AddOfflineAccount(string username)

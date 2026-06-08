@@ -239,16 +239,29 @@
                     <div class="skin-viewer-panel">
                         <canvas id="skin-canvas"></canvas>
                         
-                        <!-- Upload Panel -->
-                        <div id="skin-upload-container" class="upload-panel">
-                            <h3>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                Sua Skin Global
-                            </h3>
-                            <p>Altere sua skin para todos os jogadores do Strafe Client verem.</p>
-                            <input type="file" id="skin-upload-input" accept="image/png" style="display: none;" />
-                            <button id="btn-upload-skin" class="btn-upload">Selecionar Nova Skin</button>
-                            <button id="btn-confirm-upload" class="btn-upload confirm">Salvar no Servidor</button>
+                        <!-- Upload Panels -->
+                        <div class="upload-panels-container">
+                            <div id="skin-upload-container" class="upload-panel">
+                                <h3>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                    Skin Global
+                                </h3>
+                                <p>Sua skin visível para jogadores do Strafe Client.</p>
+                                <input type="file" id="skin-upload-input" accept="image/png" style="display: none;" />
+                                <button id="btn-upload-skin" class="btn-upload">Selecionar Nova Skin</button>
+                                <button id="btn-confirm-upload" class="btn-upload confirm">Salvar no Servidor</button>
+                            </div>
+                            
+                            <div id="cape-upload-container" class="upload-panel" style="display: none;">
+                                <h3>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
+                                    Capa Global
+                                </h3>
+                                <p>Sua capa visível para jogadores do Strafe Client.</p>
+                                <input type="file" id="cape-upload-input" accept="image/png" style="display: none;" />
+                                <button id="btn-upload-cape" class="btn-upload">Selecionar Nova Capa</button>
+                                <button id="btn-confirm-upload-cape" class="btn-upload confirm">Salvar no Servidor</button>
+                            </div>
                         </div>
 
                         <div class="anim-buttons">

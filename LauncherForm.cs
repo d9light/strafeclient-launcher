@@ -1160,13 +1160,28 @@ namespace StrafeClient
                     }
                 }
 
-                // Agora apenas removemos o config antigo para evitar conflitos,
-                // deixando o CSL rodar com as configuracoes padroes (que usa a API da Mojang,
-                // que eh automaticamente interceptada pelo nosso authlib-injector).
+                // Configura o CSL para apontar primariamente para nossa API Yggdrasil
                 string cslConfigFolder = Path.Combine(instanceRoot, "CustomSkinLoader");
-                if (Directory.Exists(cslConfigFolder)) {
-                    Directory.Delete(cslConfigFolder, true);
+                if (!Directory.Exists(cslConfigFolder)) {
+                    Directory.CreateDirectory(cslConfigFolder);
                 }
+                
+                string cslConfigFile = Path.Combine(cslConfigFolder, "CustomSkinLoader.json");
+                string configJson = @"{
+  ""version"": ""14.19"",
+  ""loadlist"": [
+    {
+      ""name"": ""StrafeAPI"",
+      ""type"": ""Yggdrasil"",
+      ""apiRoot"": ""https://brlaucher-api.vercel.app/api/yggdrasil/""
+    },
+    {
+      ""name"": ""Mojang"",
+      ""type"": ""MojangAPI""
+    }
+  ]
+}";
+                File.WriteAllText(cslConfigFile, configJson);
 
             }
             catch (Exception ex)
@@ -1420,8 +1435,9 @@ namespace StrafeClient
                     string offlineUuid = BitConverter.ToString(md5Bytes).Replace("-", "").ToLower();
                     string offlineUuidFormatted = $"{offlineUuid.Substring(0,8)}-{offlineUuid.Substring(8,4)}-{offlineUuid.Substring(12,4)}-{offlineUuid.Substring(16,4)}-{offlineUuid.Substring(20)}";
 
-                    session = new MSession(username, "0", offlineUuidFormatted);
-                    session.UserType = "Legacy";
+                    string fakeToken = (activeAcc != null && !string.IsNullOrEmpty(activeAcc.Token)) ? activeAcc.Token : Guid.NewGuid().ToString("N");
+                    session = new MSession(username, fakeToken, offlineUuidFormatted);
+                    session.UserType = "mojang";
                 }
 
                 // Baixa explicitamente
@@ -1445,7 +1461,7 @@ namespace StrafeClient
                 }
 
                 // (O mod CustomSkinLoader foi removido em favor do Authlib-Injector)
-                string authlibPath = System.IO.Path.Combine(MinecraftPath.GetOSDefaultPath(), "authlib-injector.jar");
+                string authlibPath = System.IO.Path.Combine(MinecraftPath.GetOSDefaultPath(), "authlib-injector-1.2.7.jar");
                 if (activeAcc == null || !activeAcc.IsMicrosoft)
                 {
                     if (!System.IO.File.Exists(authlibPath))
@@ -1453,12 +1469,12 @@ namespace StrafeClient
                         SendStatusToWeb("Baixando sistema nativo de skins...");
                         using (var client = new System.Net.WebClient())
                         {
-                            await client.DownloadFileTaskAsync("https://github.com/yushijinhun/authlib-injector/releases/download/v1.2.5/authlib-injector-1.2.5.jar", authlibPath);
+                            await client.DownloadFileTaskAsync("https://github.com/yushijinhun/authlib-injector/releases/download/v1.2.7/authlib-injector-1.2.7.jar", authlibPath);
                         }
 
                         // [SECURITY FIX HIGH-5] Verify SHA-256 of downloaded authlib-injector
                         // to prevent MITM attacks from injecting a malicious javaagent.
-                        const string expectedSha256 = "3bc9ebdc583b36abd2a65b626c4b9f35f21177fbf42a851606eaaea3fd42ee0f"; // SHA-256 de authlib-injector-1.2.5.jar (verificado localmente)
+                        const string expectedSha256 = "eaf14bc5acffc7d885bd5bd5942b99f36d6299302beae356b2fc5807fe42652b"; // SHA-256 de authlib-injector-1.2.7.jar
                         if (!string.IsNullOrEmpty(expectedSha256))
                         {
                             using var sha = System.Security.Cryptography.SHA256.Create();
@@ -1474,20 +1490,24 @@ namespace StrafeClient
                 }
 
 
-                // Configura o CSL se for uma instância com suporte a mods (para funcionar em LAN)
+                // O CustomSkinLoader conflitava com o authlib-injector (que já intercepta as requisições de skin nativamente).
+                // Removemos o CSL da pasta mods para garantir que o authlib-injector funcione perfeitamente.
                 if (versaoAlvo.Contains("fabric") || versaoAlvo.Contains("forge"))
                 {
-                    string mcVersion = versaoAlvo;
-                    string loader = "fabric";
-                    if (versaoAlvo.Contains("fabric-loader")) {
-                        var parts = versaoAlvo.Split('-');
-                        mcVersion = parts.Last(); // Pega a ultima parte ex: 1.20.1
-                    } else if (versaoAlvo.Contains("forge")) {
-                        loader = "forge";
-                        var parts = versaoAlvo.Split('-');
-                        if (parts.Length > 1) mcVersion = parts[1]; // Pega a versao no meio ex: forge-1.20.1-47.2.0
+                    string modsPath = Path.Combine(launcher.MinecraftPath.BasePath, "mods");
+                    if (Directory.Exists(modsPath))
+                    {
+                        foreach (var cslJar in Directory.GetFiles(modsPath, "CustomSkinLoader*.jar"))
+                        {
+                            try { File.Delete(cslJar); } catch {}
+                        }
+                        
+                        string cslFolder = Path.Combine(launcher.MinecraftPath.BasePath, "CustomSkinLoader");
+                        if (Directory.Exists(cslFolder))
+                        {
+                            try { Directory.Delete(cslFolder, true); } catch {}
+                        }
                     }
-                    await SetupCustomSkinLoader(launcher.MinecraftPath.BasePath, mcVersion, loader);
                 }
 
                 SendStatusToWeb("Pronto! Abrindo o Minecraft...");
