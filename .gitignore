@@ -39,3 +39,13 @@ crash-reports/
 appsettings.*.json
 !appsettings.json
 secrets.json
+
+# ==========================================
+# PUBLISH / DISTRIBUIÇÃO (gerado pelo build)
+# ==========================================
+Publish/
+
+# ==========================================
+# ARQUIVOS TEMPORÁRIOS / PLACEHOLDERS
+# ==========================================
+dummy.png

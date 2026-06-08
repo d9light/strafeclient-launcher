@@ -1,4 +1,0 @@
-2026/06/06-00:55:09.634 3f8c Creating DB C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\shared_proto_db\metadata since it was missing.
-2026/06/06-00:55:09.642 3f8c Reusing MANIFEST C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\shared_proto_db\metadata/MANIFEST-000001
-2026/06/06-00:55:09.643 3f8c Recovering log #3
-2026/06/06-00:55:09.644 3f8c Reusing old log C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\shared_proto_db\metadata/000003.log 

@@ -304,16 +304,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setPlayLoading(isLoading) {
         if (!btnPlay) return;
+        const btnPlayIcon = document.getElementById('btn-play-icon');
         if (isLoading) {
             btnPlay.classList.add('loading');
             btnPlay.disabled = true;
             if (btnPlayText) btnPlayText.textContent = 'Iniciando...';
+            if (btnPlayIcon) btnPlayIcon.classList.add('hidden');
             if (btnPlaySpinner) btnPlaySpinner.classList.remove('hidden');
             if (launchProgressBar) launchProgressBar.classList.remove('hidden');
         } else {
             btnPlay.classList.remove('loading');
             btnPlay.disabled = false;
             if (btnPlayText) btnPlayText.textContent = 'JOGAR';
+            if (btnPlayIcon) btnPlayIcon.classList.remove('hidden');
             if (btnPlaySpinner) btnPlaySpinner.classList.add('hidden');
             if (launchProgressBar) launchProgressBar.classList.add('hidden');
             if (launchProgressFill) launchProgressFill.style.width = '0%';
@@ -584,13 +587,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // DASHBOARD DYNAMIC CARDS
     // ==========================================
+    // Quick-Launch state
+    let quickLaunchInstances = [];
+
     function renderDashboard() {
         const container = document.getElementById('dashboard-stats');
         if (!container) return;
 
         const activeAcc = currentAccounts.find(a => a.Id === currentActiveId);
         const accCount = currentAccounts.length;
-        const headUrl = activeAcc ? `https://minotar.net/avatar/${activeAcc.Username}/64` : null;
 
         container.innerHTML = '';
 
@@ -647,6 +652,49 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="dash-card-sub">Pronto para jogar</div>
         `;
         container.appendChild(verCard);
+
+        // Card: Quick-Launch (última instância jogada)
+        const qlName = localStorage.getItem('quicklaunch_instance');
+        const qlVer  = localStorage.getItem('quicklaunch_version');
+        const qlInst = qlName && quickLaunchInstances.find(i => i.Name === qlName);
+        if (qlInst) {
+            const qlCard = document.createElement('div');
+            qlCard.className = 'dash-card dash-card--quicklaunch clickable';
+            qlCard.innerHTML = `
+                <div class="dash-card-header">
+                    <div class="dash-card-icon violet">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div class="dash-card-title">Última Jogada</div>
+                        <div class="dash-card-value" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${qlInst.Name}</div>
+                    </div>
+                </div>
+                <div class="dash-card-sub" style="display:flex; align-items:center; justify-content:space-between;">
+                    <span>${qlVer || qlInst.MinecraftVersion}</span>
+                    <button class="btn-quicklaunch" id="btn-quicklaunch-play"
+                        data-name="${qlInst.Name}" data-ver="${qlVer || qlInst.MinecraftVersion}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Jogar
+                    </button>
+                </div>
+            `;
+            container.appendChild(qlCard);
+
+            document.getElementById('btn-quicklaunch-play').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const name = e.currentTarget.getAttribute('data-name');
+                const ver  = e.currentTarget.getAttribute('data-ver');
+                if (instanceNameInput) instanceNameInput.value = name;
+                if (ver && Array.from(versionSelect.options).some(o => o.value === ver))
+                    versionSelect.value = ver;
+                btnPlay.click();
+            });
+
+            qlCard.addEventListener('click', () => {
+                document.querySelector('[data-target="view-instances"]').click();
+            });
+        }
     }
 
     // ==========================================
@@ -797,14 +845,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="anim-btn btn-mods-instance" data-name="${inst.Name}" data-ver="${inst.MinecraftVersion}" data-mod="${inst.Modloader}" title="Mods">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline></svg>
                     </button>
+                    <button class="anim-btn btn-export-instance" data-name="${inst.Name}" title="Exportar mods como .brlauncher">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </button>
                     <button class="anim-btn btn-delete-instance" data-name="${inst.Name}" title="Deletar" style="color: var(--accent-red);">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
                 </div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-purple)" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                 <h3>${inst.Name}</h3>
                 <span class="badge">${inst.MinecraftVersion} | ${inst.Modloader}</span>
-                <button class="btn-play-instance" data-name="${inst.Name}" data-ver="${inst.MinecraftVersion}">Jogar</button>
+                <button class="btn-play-instance" data-name="${inst.Name}" data-ver="${inst.MinecraftVersion}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    Jogar
+                </button>
             `;
             instancesGrid.appendChild(card);
         });
@@ -834,6 +888,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('instance-mods-results-grid').innerHTML = '';
                 views.forEach(v => v.classList.add('hidden'));
                 document.getElementById('view-instance-mods').classList.remove('hidden');
+                // Load installed mods list
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage(JSON.stringify({
+                        action: 'getInstanceMods',
+                        instanceName: el.getAttribute('data-name')
+                    }));
+                }
             });
         });
 
@@ -865,6 +926,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (enableOptChk) enableOptChk.checked = enableOpt;
                 createInstanceModal.classList.remove('hidden');
             });
+        });
+
+        // Export instance
+        document.querySelectorAll('.btn-export-instance').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const name = e.currentTarget.getAttribute('data-name');
+                const btn = e.currentTarget;
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage(JSON.stringify({
+                        action: 'exportInstance',
+                        instanceName: name
+                    }));
+                }
+            });
+        });
+    }
+
+    // Import Instance button
+    const btnImportInstance = document.getElementById('btn-import-instance');
+    if (btnImportInstance) {
+        btnImportInstance.addEventListener('click', () => {
+            const name = prompt('Nome da instância onde importar os mods (deve já existir):');
+            if (!name || !name.trim()) return;
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(JSON.stringify({
+                    action: 'importInstance',
+                    instanceName: name.trim()
+                }));
+            }
         });
     }
 
@@ -929,6 +1022,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             localStorage.setItem('last_instance', inst);
             localStorage.setItem('last_ram', ram);
+            
+            // Quick-Launch persistence
+            if (inst && inst !== 'padrao') {
+                localStorage.setItem('quicklaunch_instance', inst);
+                localStorage.setItem('quicklaunch_version', ver);
+            }
 
             setPlayLoading(true);
             addDownloadTask('system', `Minecraft ${ver}`);
@@ -1310,7 +1409,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     finishDownloadTask('system', false, data.text);
                 }
                 else if (data.type === 'instances') {
+                    quickLaunchInstances = data.list || [];
                     renderInstances(data.list);
+                    renderDashboard(); // refresh Quick-Launch card
+                }
+                else if (data.type === 'instanceMods') {
+                    renderInstalledMods(data.list);
                 }
                 else if (data.type === 'accounts') {
                     renderAccounts(data.list, data.activeId);
@@ -1349,6 +1453,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (data.type === 'builderModResults') {
                     renderModResults('builder-results', data.results, 'builder');
                 }
+                else if (data.type === 'modVersions') {
+                    renderModVersionPicker(data);
+                }
+                else if (data.type === 'exportInstanceResult') {
+                    // Re-enable all export buttons
+                    document.querySelectorAll('.btn-export-instance').forEach(b => {
+                        b.disabled = false;
+                        b.style.opacity = '';
+                    });
+                    if (data.success) {
+                        const filename = data.path.split('\\').pop();
+                        showToast(`Exportado! ${data.modCount} mod(s) → <strong>${filename}</strong>`, 'success');
+                    } else {
+                        showToast('Erro ao exportar: ' + (data.error || 'Desconhecido'), 'error');
+                    }
+                }
+                else if (data.type === 'importInstanceResult') {
+                    if (data.cancelled) return; // user dismissed dialog
+                    if (data.success) {
+                        showToast(`${data.modCount} mod(s) importados para <strong>${data.instanceName}</strong>`, 'success');
+                        // Refresh mods list if the user is currently viewing that instance
+                        if (window.currentModManagerInstance && window.currentModManagerInstance.name === data.instanceName) {
+                            window.chrome.webview.postMessage(JSON.stringify({
+                                action: 'getInstanceMods',
+                                instanceName: data.instanceName
+                            }));
+                        }
+                    } else {
+                        showToast('Erro ao importar: ' + (data.error || 'Desconhecido'), 'error');
+                    }
+                }
             } catch (e) { console.error("Erro", e); }
         });
 
@@ -1373,6 +1508,81 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateModal.classList.add('hidden');
             });
         }
+    }
+
+    // ==========================================
+    // INSTALLED MODS PANEL
+    // ==========================================
+    function renderInstalledMods(mods) {
+        const panel = document.getElementById('installed-mods-panel');
+        const count = document.getElementById('installed-mods-count');
+        if (!panel) return;
+
+        if (count) count.textContent = mods.length + ' mod' + (mods.length !== 1 ? 's' : '');
+
+        if (!mods || mods.length === 0) {
+            panel.innerHTML = '<div class="installed-mods-empty"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline></svg><p>Nenhum mod instalado nessa instância.</p></div>';
+            return;
+        }
+
+        panel.innerHTML = '';
+        mods.forEach(mod => {
+            const row = document.createElement('div');
+            row.className = 'installed-mod-row' + (!mod.enabled ? ' mod-disabled' : '');
+            row.innerHTML = `
+                <div class="installed-mod-info">
+                    <span class="installed-mod-status-dot${mod.enabled ? ' dot-active' : ' dot-disabled'}"></span>
+                    <span class="installed-mod-name" title="${mod.filename}">${mod.filename}</span>
+                    <span class="installed-mod-badge${mod.enabled ? '' : ' badge-disabled'}">${mod.enabled ? 'Ativo' : 'Desativado'}</span>
+                </div>
+                <div class="installed-mod-actions">
+                    <button class="btn-toggle-mod" data-path="${mod.path}" data-enabled="${mod.enabled}" title="${mod.enabled ? 'Desativar' : 'Ativar'}">
+                        ${mod.enabled
+                            ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"></rect><circle cx="16" cy="12" r="3" fill="currentColor"></circle></svg>'
+                            : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"></rect><circle cx="8" cy="12" r="3" fill="currentColor"></circle></svg>'
+                        }
+                    </button>
+                    <button class="btn-remove-mod" data-path="${mod.path}" data-name="${mod.filename}" title="Remover">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </div>
+            `;
+            panel.appendChild(row);
+        });
+
+        // Toggle listeners
+        panel.querySelectorAll('.btn-toggle-mod').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const filePath = btn.getAttribute('data-path');
+                const enabled = btn.getAttribute('data-enabled') === 'true';
+                if (!window.currentModManagerInstance) return;
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage(JSON.stringify({
+                        action: 'toggleMod',
+                        instanceName: window.currentModManagerInstance.name,
+                        filePath: filePath,
+                        enabled: enabled
+                    }));
+                }
+            });
+        });
+
+        // Remove listeners
+        panel.querySelectorAll('.btn-remove-mod').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const filePath = btn.getAttribute('data-path');
+                const name = btn.getAttribute('data-name');
+                if (!window.currentModManagerInstance) return;
+                if (!confirm(`Remover o mod "${name}" permanentemente?`)) return;
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage(JSON.stringify({
+                        action: 'removeMod',
+                        instanceName: window.currentModManagerInstance.name,
+                        filePath: filePath
+                    }));
+                }
+            });
+        });
     }
 
     // ==========================================
@@ -1407,10 +1617,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         grid.querySelectorAll(`.btn-install-${type}`).forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const slug = e.target.getAttribute('data-slug');
-                const proj = e.target.getAttribute('data-project');
+                const slug  = e.target.getAttribute('data-slug');
+                const proj  = e.target.getAttribute('data-project');
                 const title = e.target.getAttribute('data-title');
-                const icon = e.target.getAttribute('data-icon');
+                const icon  = e.target.getAttribute('data-icon');
                 
                 if (type === 'builder') {
                     window.addModToBuilderCart(proj, title, icon);
@@ -1418,26 +1628,196 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.target.disabled = true;
                     return;
                 }
-                
-                e.target.innerText = "Adicionado";
-                e.target.disabled = true;
-                
-                addDownloadTask(slug, `${type === 'modpack' ? 'Pack' : 'Mod'}: ${slug}`);
-                
+
                 if (type === 'modpack') {
+                    e.target.innerText = "Instalando...";
+                    e.target.disabled = true;
+                    addDownloadTask(slug, `Pack: ${slug}`);
                     window.chrome.webview.postMessage(JSON.stringify({
                         action: 'installModpack', slug, projectId: proj
                     }));
-                } else {
-                    const { name, ver, modloader } = window.currentModManagerInstance;
+                    return;
+                }
+
+                // type === 'mod': open version picker
+                if (!window.currentModManagerInstance) return;
+                const { name, ver, modloader } = window.currentModManagerInstance;
+
+                // Store reference so picker can re-enable button on cancel
+                e.target.innerText = "Carregando...";
+                e.target.disabled = true;
+                window._modPickerBtn = e.target;
+                window._modPickerSlug = slug;
+
+                if (window.chrome && window.chrome.webview) {
                     window.chrome.webview.postMessage(JSON.stringify({
-                        action: 'installMod', slug, projectId: proj,
-                        version: ver, modloader, instanceName: name
+                        action: 'getModVersions',
+                        slug, projectId: proj, title,
+                        version: ver, modloader
                     }));
                 }
             });
         });
     }
+
+    // ==========================================
+    // MOD VERSION PICKER
+    // ==========================================
+    let _allVersions = [];
+    let _pickerMeta  = {}; // { slug, projectId, modloader }
+    let _selectedVer = null;
+    let _activeTypeFilter = 'all';
+
+    function renderModVersionPicker(data) {
+        const modal    = document.getElementById('mod-version-modal');
+        const titleEl  = document.getElementById('mod-version-modal-title');
+        const subEl    = document.getElementById('mod-version-modal-sub');
+        const listEl   = document.getElementById('mod-version-list');
+        const installBtn = document.getElementById('btn-mod-version-install');
+        const searchEl = document.getElementById('mod-version-search');
+
+        if (!modal) return;
+
+        _allVersions = data.versions || [];
+        _pickerMeta  = { slug: data.slug, projectId: data.projectId, modloader: data.modloader };
+        _selectedVer = null;
+        _activeTypeFilter = 'all';
+
+        titleEl.textContent = data.title || data.slug;
+        subEl.textContent   = `${_allVersions.length} versão${_allVersions.length !== 1 ? 'ões' : ''} compatível${_allVersions.length !== 1 ? 'eis' : ''} encontrada${_allVersions.length !== 1 ? 's' : ''}`;
+        installBtn.disabled = true;
+        if (searchEl) searchEl.value = '';
+
+        // Reset type filters
+        document.querySelectorAll('.mvt-filter').forEach(b => b.classList.toggle('active', b.dataset.type === 'all'));
+
+        renderVersionList(listEl, _allVersions, installBtn);
+        modal.classList.remove('hidden');
+    }
+
+    function renderVersionList(listEl, versions, installBtn) {
+        const searchVal = (document.getElementById('mod-version-search')?.value || '').toLowerCase();
+
+        const filtered = versions.filter(v => {
+            const matchType = _activeTypeFilter === 'all' || v.version_type === _activeTypeFilter;
+            const matchSearch = !searchVal ||
+                v.version_number.toLowerCase().includes(searchVal) ||
+                v.name.toLowerCase().includes(searchVal);
+            return matchType && matchSearch;
+        });
+
+        if (filtered.length === 0) {
+            listEl.innerHTML = '<div class="mod-version-loading"><p style="color:var(--text-muted);">Nenhuma versão encontrada para esse filtro.</p></div>';
+            return;
+        }
+
+        listEl.innerHTML = '';
+        filtered.forEach((v, idx) => {
+            const isFirst = idx === 0;
+            const date = v.date_published
+                ? new Date(v.date_published).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' })
+                : '';
+            const typeClass = { release: 'mvt-badge-release', beta: 'mvt-badge-beta', alpha: 'mvt-badge-alpha' }[v.version_type] || 'mvt-badge-release';
+            const typeLabel = { release: 'Release', beta: 'Beta', alpha: 'Alpha' }[v.version_type] || v.version_type;
+            const changelog = (v.changelog || '').slice(0, 120).replace(/</g,'&lt;') + (v.changelog && v.changelog.length > 120 ? '...' : '');
+
+            const row = document.createElement('div');
+            row.className = 'mvt-row' + (isFirst ? ' mvt-row--latest' : '');
+            row.dataset.id = v.id;
+            row.innerHTML = `
+                <div class="mvt-row-main">
+                    <div class="mvt-row-left">
+                        <span class="mvt-badge ${typeClass}">${typeLabel}</span>
+                        <div>
+                            <div class="mvt-version-name">${v.version_number}${isFirst ? ' <span class="mvt-latest-tag"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Mais recente</span>' : ''}</div>
+                            <div class="mvt-version-sub">${v.name !== v.version_number ? v.name + ' &bull; ' : ''}${date}</div>
+                        </div>
+                    </div>
+                    <div class="mvt-row-right">
+                        <span class="mvt-filename" title="${v.filename}">${v.filename}</span>
+                        <div class="mvt-select-dot"></div>
+                    </div>
+                </div>
+                ${changelog ? `<div class="mvt-changelog">${changelog}</div>` : ''}
+            `;
+            row.addEventListener('click', () => {
+                // Deselect all
+                listEl.querySelectorAll('.mvt-row').forEach(r => r.classList.remove('mvt-row--selected'));
+                row.classList.add('mvt-row--selected');
+                _selectedVer = v;
+                installBtn.disabled = false;
+                // Update footer info
+                const infoEl = document.getElementById('mod-version-selected-info');
+                if (infoEl) infoEl.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <strong>${v.version_number}</strong> &mdash; ${v.filename}
+                `;
+            });
+            listEl.appendChild(row);
+        });
+    }
+
+    // Wire up picker controls once DOM is ready
+    (function initModVersionPicker() {
+        const modal      = document.getElementById('mod-version-modal');
+        const closeBtn   = document.getElementById('btn-close-mod-version-modal');
+        const installBtn = document.getElementById('btn-mod-version-install');
+        const latestBtn  = document.getElementById('btn-mod-version-latest');
+        const searchEl   = document.getElementById('mod-version-search');
+        const listEl     = document.getElementById('mod-version-list');
+        if (!modal) return;
+
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            if (window._modPickerBtn) {
+                window._modPickerBtn.innerText = 'Instalar';
+                window._modPickerBtn.disabled = false;
+                window._modPickerBtn = null;
+            }
+        });
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeBtn.click(); });
+
+        // Type filter buttons
+        document.querySelectorAll('.mvt-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                _activeTypeFilter = btn.dataset.type;
+                document.querySelectorAll('.mvt-filter').forEach(b => b.classList.toggle('active', b === btn));
+                renderVersionList(listEl, _allVersions, installBtn);
+            });
+        });
+
+        // Search
+        if (searchEl) {
+            searchEl.addEventListener('input', () => renderVersionList(listEl, _allVersions, installBtn));
+        }
+
+        // Latest version shortcut
+        latestBtn.addEventListener('click', () => {
+            if (!_allVersions.length || !window.currentModManagerInstance) return;
+            doInstallMod(null); // null = let backend pick latest
+        });
+
+        // Install
+        installBtn.addEventListener('click', () => {
+            if (!_selectedVer || !window.currentModManagerInstance) return;
+            doInstallMod(_selectedVer.id);
+        });
+
+        function doInstallMod(versionId) {
+            const { name, ver, modloader } = window.currentModManagerInstance;
+            const { slug, projectId } = _pickerMeta;
+            modal.classList.add('hidden');
+            if (window._modPickerBtn) {
+                window._modPickerBtn.innerText = 'Adicionado';
+                window._modPickerBtn.disabled = true;
+                window._modPickerBtn = null;
+            }
+            addDownloadTask(slug, `Mod: ${slug}`);
+            const payload = { action: 'installMod', slug, projectId, version: ver, modloader, instanceName: name };
+            if (versionId) payload.versionId = versionId;
+            window.chrome.webview.postMessage(JSON.stringify(payload));
+        }
+    })();
 
     // ==========================================
     // AUTHENTICATION LOGIC

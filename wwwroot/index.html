@@ -192,6 +192,7 @@
                             </div>
                         </div>
                         <button id="btn-play" class="btn-play-massive">
+                            <svg id="btn-play-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                             <span id="btn-play-text">JOGAR</span>
                             <svg id="btn-play-spinner" class="play-spinner hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
                         </button>
@@ -207,7 +208,16 @@
                 <section id="view-instances" class="view hidden">
                     <div class="instances-header">
                         <h2 class="glow-text">Seus Modpacks</h2>
-                        <button id="btn-new-instance" class="btn-play-massive" style="padding: 10px 20px; font-size: 1rem;">+ Novo</button>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <button id="btn-import-instance" class="btn-secondary" style="width:auto; margin-top:0; padding:10px 18px; display:flex; align-items:center; gap:7px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Importar
+                            </button>
+                            <button id="btn-new-instance" class="btn-play-massive" style="padding: 10px 20px; font-size: 1rem;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Novo
+                            </button>
+                        </div>
                     </div>
                     <div class="instances-grid" id="instances-grid">
                         <!-- Cards gerados via JS -->
@@ -370,7 +380,10 @@
                 <section id="view-instance-mods" class="view hidden mod-manager-layout">
                     <div>
                          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <button id="btn-back-to-instances" class="btn-secondary" style="width: auto; padding: 8px 15px; margin-bottom: 0;">&#8592; Voltar</button>
+                        <button id="btn-back-to-instances" class="btn-secondary btn-back" style="width: auto; padding: 8px 15px; margin-bottom: 0; display:flex; align-items:center; gap:6px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            Voltar
+                        </button>
                         <button id="btn-open-instance-folder" class="btn-primary" style="width: auto; padding: 8px 15px; background: rgba(0, 180, 216, 0.2); border: 1px solid var(--accent-blue); color: var(--accent-blue); font-size: 0.9rem; font-weight: bold; border-radius: var(--radius-md); display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s ease;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                             Abrir Pasta de Mods
@@ -385,6 +398,23 @@
                     </div>
                     <div id="instance-mods-results-grid" class="mod-results-grid">
                         <!-- Resultados via JS -->
+                    </div>
+
+                    <!-- Mods Instalados na Instância -->
+                    <div class="installed-mods-section">
+                        <div class="installed-mods-header">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-purple)" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline></svg>
+                                <span style="font-weight:700; font-size:0.95rem;">Mods Instalados</span>
+                                <span id="installed-mods-count" class="installed-mods-badge">0 mods</span>
+                            </div>
+                        </div>
+                        <div id="installed-mods-panel" class="installed-mods-panel">
+                            <div class="installed-mods-empty">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline></svg>
+                                <p>Nenhum mod instalado nessa instância.</p>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -542,6 +572,58 @@
                     <div style="text-align:center; padding:20px; color:var(--text-secondary);">Carregando mods locais...</div>
                 </div>
                 <button id="btn-confirm-local-mods" class="btn-play-massive" style="width: 100%; padding: 12px; font-size: 1rem;">Adicionar Selecionados</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mod Version Picker Modal -->
+    <div id="mod-version-modal" class="modal hidden">
+        <div class="modal-content glass-panel mod-version-modal-content">
+            <div class="modal-header">
+                <div class="mod-version-modal-title-wrap">
+                    <div class="mod-version-icon-wrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                    </div>
+                    <div>
+                        <h2 id="mod-version-modal-title">Selecionar Versão</h2>
+                        <p id="mod-version-modal-sub" style="font-size:0.8rem; color:var(--text-muted); margin:0;"></p>
+                    </div>
+                </div>
+                <button id="btn-close-mod-version-modal" class="win-btn win-close" style="width:auto;height:auto;padding:6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding:0;">
+                <!-- Search / filter -->
+                <div class="mod-version-search-row">
+                    <input type="text" id="mod-version-search" placeholder="Filtrar versões..." style="flex:1; padding:10px 14px; border-radius:var(--radius-sm); background:var(--bg-input); border:1px solid var(--border-medium); color:#fff; font-size:0.9rem; outline:none;">
+                    <div class="mod-version-type-filters">
+                        <button class="mvt-filter active" data-type="all">Todos</button>
+                        <button class="mvt-filter" data-type="release">Release</button>
+                        <button class="mvt-filter" data-type="beta">Beta</button>
+                        <button class="mvt-filter" data-type="alpha">Alpha</button>
+                    </div>
+                </div>
+                <!-- Version list -->
+                <div id="mod-version-list" class="mod-version-list">
+                    <div class="mod-version-loading">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-anim"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+                        <p>Buscando versões...</p>
+                    </div>
+                </div>
+                <!-- Footer -->
+                <div class="mod-version-footer">
+                    <div id="mod-version-selected-info" class="mod-version-selected-info">
+                        <span>Nenhuma versão selecionada</span>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button id="btn-mod-version-latest" class="btn-secondary" style="padding:10px 16px; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            Última Versão
+                        </button>
+                        <button id="btn-mod-version-install" class="btn-play-massive" style="padding:10px 24px; font-size:0.9rem;" disabled>Instalar</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

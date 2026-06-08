@@ -11,18 +11,45 @@ namespace StrafeClient
     /// <summary>
     /// Gerencia verificação e aplicação de atualizações automáticas do Strafe Client.
     /// Fluxo: CheckAsync → DownloadAsync → ApplyUpdate → updater.bat substitui o .exe
+    ///
+    /// Como funciona:
+    ///   1. Consulta a API do GitHub Releases para o repositório configurado.
+    ///   2. Compara a tag da última release com VERSAO_ATUAL.
+    ///   3. Se houver versão mais nova, procura um asset .exe na release e retorna a URL.
+    ///   4. O launcher baixa o novo .exe e o updater.bat substitui o atual em disco.
+    ///
+    /// O que você precisa fazer para lançar uma atualização:
+    ///   1. Compile o projeto (dotnet publish ou via Visual Studio).
+    ///   2. Vá em github.com/d9light/strafeclient-launcher → Releases → "Draft a new release".
+    ///   3. Crie uma tag no formato vX.Y.Z (ex: v1.0.1).
+    ///   4. Faça upload do StrafeClient.exe (ou do .zip com tudo) como asset da release.
+    ///   5. Publique a release. O launcher dos usuários vai detectar e baixar automaticamente!
     /// </summary>
     public static class UpdateManager
     {
         // ============================================================
-        // VERSÃO ATUAL — incremente isso a cada release publicado
+        // VERSÃO ATUAL — deve bater com a tag da release mais recente
+        // Incremente isso ANTES de compilar e criar a release no GitHub.
+        // Ex: se criar a release com tag "v1.0.1", coloque "1.0.1" aqui.
         // ============================================================
-        public const string VERSAO_ATUAL = "1.0.0";
+        public const string VERSAO_ATUAL = "1.0.1";
 
-        private const string API_VERSAO_URL = "https://brlaucher-api.vercel.app/api/versao";
+        // ============================================================
+        // Repositório do GitHub — altere se mudar o repo
+        // ============================================================
+        private const string GITHUB_OWNER = "d9light";
+        private const string GITHUB_REPO  = "strafeclient-launcher";
+
+        private const string GITHUB_API_LATEST =
+            "https://api.github.com/repos/" + GITHUB_OWNER + "/" + GITHUB_REPO + "/releases/latest";
+
+        // Nome do arquivo .exe que você faz upload na Release.
+        // Pode mudar se quiser, mas tem que bater com o nome do asset lá no GitHub.
+        private const string EXE_ASSET_NAME = "StrafeClient.exe";
+
         private static readonly HttpClient _http = new HttpClient
         {
-            Timeout = TimeSpan.FromSeconds(10)
+            Timeout = TimeSpan.FromSeconds(15)
         };
 
         // ============================================================
@@ -31,27 +58,67 @@ namespace StrafeClient
         public record UpdateInfo(string Versao, string Url, string Notas);
 
         // ============================================================
-        // 1. VERIFICAR SE HÁ ATUALIZAÇÃO
+        // 1. VERIFICAR SE HÁ ATUALIZAÇÃO (consulta GitHub Releases)
         // ============================================================
         public static async Task<UpdateInfo?> CheckAsync()
         {
             try
             {
+                // GitHub exige User-Agent
                 _http.DefaultRequestHeaders.Clear();
                 _http.DefaultRequestHeaders.Add("User-Agent", $"StrafeClient/{VERSAO_ATUAL}");
+                _http.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
 
-                string json = await _http.GetStringAsync(API_VERSAO_URL);
+                string json = await _http.GetStringAsync(GITHUB_API_LATEST);
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                string versaoRemota = root.GetProperty("version").GetString() ?? "0.0.0";
-                string url = root.GetProperty("url").GetString() ?? "";
-                string notas = root.TryGetProperty("notes", out var notesProp)
-                    ? notesProp.GetString() ?? ""
+                // A tag da release (ex: "v1.0.1")
+                string tagName = root.GetProperty("tag_name").GetString() ?? "0.0.0";
+
+                // Notas da release (corpo do markdown)
+                string notas = root.TryGetProperty("body", out var bodyProp)
+                    ? bodyProp.GetString() ?? ""
                     : "";
 
-                if (IsNewerVersion(versaoRemota, VERSAO_ATUAL))
-                    return new UpdateInfo(versaoRemota, url, notas);
+                if (!IsNewerVersion(tagName, VERSAO_ATUAL))
+                    return null;
+
+                // Procura o asset .exe nos arquivos da release
+                string downloadUrl = "";
+                if (root.TryGetProperty("assets", out var assets))
+                {
+                    foreach (var asset in assets.EnumerateArray())
+                    {
+                        string assetName = asset.TryGetProperty("name", out var nameProp)
+                            ? nameProp.GetString() ?? ""
+                            : "";
+
+                        // Aceita o asset cujo nome termina em .exe (ou bate com EXE_ASSET_NAME)
+                        if (assetName.Equals(EXE_ASSET_NAME, StringComparison.OrdinalIgnoreCase)
+                            || assetName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                        {
+                            downloadUrl = asset.TryGetProperty("browser_download_url", out var urlProp)
+                                ? urlProp.GetString() ?? ""
+                                : "";
+                            break;
+                        }
+                    }
+                }
+
+                // Se não há asset .exe, não tem como atualizar automaticamente
+                if (string.IsNullOrEmpty(downloadUrl))
+                {
+                    System.Diagnostics.Debug.WriteLine("[Update] Release encontrada mas sem asset .exe para download.");
+                    return null;
+                }
+
+                return new UpdateInfo(tagName, downloadUrl, notas);
+            }
+            catch (HttpRequestException ex) when (ex.Message.Contains("404"))
+            {
+                // Nenhuma release publicada ainda — normal no início do projeto
+                System.Diagnostics.Debug.WriteLine("[Update] Nenhuma release encontrada no GitHub (404).");
             }
             catch (Exception ex)
             {
@@ -69,8 +136,13 @@ namespace StrafeClient
         {
             try
             {
-                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+                string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "StrafeClient.exe");
+                string exeDir = Path.GetDirectoryName(currentExe) ?? AppDomain.CurrentDomain.BaseDirectory;
                 string destPath = Path.Combine(exeDir, "StrafeClient_new.exe");
+
+                // GitHub Releases redireciona para o CDN — precisa seguir redirects
+                _http.DefaultRequestHeaders.Clear();
+                _http.DefaultRequestHeaders.Add("User-Agent", $"StrafeClient/{VERSAO_ATUAL}");
 
                 using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
@@ -114,18 +186,19 @@ namespace StrafeClient
         // ============================================================
         public static void ApplyUpdate(string newExePath)
         {
-            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-            string currentExe = Path.Combine(exeDir, "StrafeClient.exe");
+            string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "StrafeClient.exe");
+            string exeDir = Path.GetDirectoryName(currentExe) ?? AppDomain.CurrentDomain.BaseDirectory;
             string updaterPath = Path.Combine(exeDir, "updater.bat");
+            string exeName = Path.GetFileName(currentExe);
 
             // Script que aguarda o processo fechar, substitui o exe e reinicia
             string script = $@"@echo off
-title Strafe Client — Atualizando...
-echo Aguardando o Strafe Client fechar...
+title Strafe Client - Atualizando...
+echo Aguardando o {exeName} fechar...
 timeout /t 2 /nobreak >nul
 
 :wait_loop
-tasklist /FI ""IMAGENAME eq StrafeClient.exe"" 2>nul | find /I ""StrafeClient.exe"" >nul
+tasklist /FI ""IMAGENAME eq {exeName}"" 2>nul | find /I ""{exeName}"" >nul
 if not errorlevel 1 (
     timeout /t 1 /nobreak >nul
     goto wait_loop
@@ -133,27 +206,33 @@ if not errorlevel 1 (
 
 echo Aplicando atualizacao...
 move /Y ""{newExePath}"" ""{currentExe}"" >nul
+if errorlevel 1 (
+    echo ERRO: Nao foi possivel substituir o executavel.
+    pause
+    goto end
+)
 
 echo Reiniciando o Strafe Client...
 start """" ""{currentExe}""
 
+:end
 del ""%~f0""
 ";
 
             File.WriteAllText(updaterPath, script, System.Text.Encoding.ASCII);
 
-            // Lança o updater.bat de forma minimizada e fecha o app
+            // Lança o updater.bat diretamente (UseShellExecute abre o .bat sem precisar de cmd.exe)
             Process.Start(new ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = $"/c \"{updaterPath}\"",
+                FileName = updaterPath,
+                UseShellExecute = true,
                 WindowStyle = ProcessWindowStyle.Minimized,
-                CreateNoWindow = false
             });
         }
 
         // ============================================================
         // Helper — compara versões SemVer simples (Major.Minor.Patch)
+        // Aceita tags com ou sem "v" na frente (ex: "v1.0.1" ou "1.0.1")
         // ============================================================
         private static bool IsNewerVersion(string remote, string current)
         {

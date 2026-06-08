@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Linq;
 using System.IO;
+using System.IO.Compression;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -512,13 +513,78 @@ namespace StrafeClient
                             }
                         });
                     }
+                    else if (action == "getModVersions")
+                    {
+                        string projectId = root.GetProperty("projectId").GetString() ?? "";
+                        string ver       = GetBaseMinecraftVersion(root.GetProperty("version").GetString() ?? "");
+                        string modloader = root.GetProperty("modloader").GetString() ?? "fabric";
+                        string slug      = root.GetProperty("slug").GetString() ?? "";
+                        string title     = root.TryGetProperty("title", out var tp) ? tp.GetString() ?? slug : slug;
+                        if (modloader == "None") modloader = "fabric";
+
+                        Task.Run(async () =>
+                        {
+                            try
+                            {
+                                string loader = modloader.ToLower();
+                                string url = $"https://api.modrinth.com/v2/project/{projectId}/version?loaders=[\"{loader}\"]&game_versions=[\"{ver}\"]";
+
+                                using var http = new System.Net.Http.HttpClient();
+                                http.DefaultRequestHeaders.Add("User-Agent", "StrafeClient/1.0 (contact@brlauncher.com)");
+                                http.Timeout = TimeSpan.FromSeconds(15);
+
+                                var resp = await http.GetAsync(url);
+                                resp.EnsureSuccessStatusCode();
+                                string json = await resp.Content.ReadAsStringAsync();
+
+                                using var doc = JsonDocument.Parse(json);
+                                var versions = new System.Collections.Generic.List<object>();
+                                foreach (var v in doc.RootElement.EnumerateArray())
+                                {
+                                    string versionId     = v.TryGetProperty("id",             out var idP)     ? idP.GetString()     ?? "" : "";
+                                    string versionName   = v.TryGetProperty("name",           out var nameP)   ? nameP.GetString()   ?? "" : "";
+                                    string versionNumber = v.TryGetProperty("version_number", out var numP)    ? numP.GetString()    ?? "" : "";
+                                    string datePublished = v.TryGetProperty("date_published",  out var dateP)   ? dateP.GetString()   ?? "" : "";
+                                    string changelog     = v.TryGetProperty("changelog",       out var changeP) ? changeP.GetString() ?? "" : "";
+                                    string vType         = v.TryGetProperty("version_type",   out var vtP)     ? vtP.GetString()     ?? "release" : "release";
+
+                                    // Primary file info
+                                    string filename = "";
+                                    if (v.TryGetProperty("files", out var files) && files.GetArrayLength() > 0)
+                                        filename = files[0].TryGetProperty("filename", out var fnP) ? fnP.GetString() ?? "" : "";
+
+                                    versions.Add(new {
+                                        id            = versionId,
+                                        name          = versionName,
+                                        version_number = versionNumber,
+                                        date_published = datePublished,
+                                        changelog     = changelog,
+                                        version_type  = vType,
+                                        filename
+                                    });
+                                }
+
+                                this.Invoke(new Action(() =>
+                                {
+                                    var msg = new { type = "modVersions", slug, title, versions, projectId, modloader = modloader };
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(msg));
+                                }));
+                            }
+                            catch (Exception ex)
+                            {
+                                this.Invoke(new Action(() => SendErrorToWeb("Erro ao buscar versões: " + ex.Message, ex)));
+                            }
+                        });
+                    }
                     else if (action == "installMod")
                     {
-                        string slug = root.GetProperty("slug").GetString() ?? "";
-                        string projectId = root.GetProperty("projectId").GetString() ?? "";
-                        string ver = GetBaseMinecraftVersion(root.GetProperty("version").GetString() ?? "");
-                        string modloader = root.GetProperty("modloader").GetString() ?? "fabric";
+                        string slug        = root.GetProperty("slug").GetString() ?? "";
+                        string projectId   = root.GetProperty("projectId").GetString() ?? "";
+                        string ver         = GetBaseMinecraftVersion(root.GetProperty("version").GetString() ?? "");
+                        string modloader   = root.GetProperty("modloader").GetString() ?? "fabric";
                         string instanceName = root.GetProperty("instanceName").GetString() ?? "";
+                        // Optional: specific version id chosen by the user
+                        string versionId   = root.TryGetProperty("versionId", out var vidP) ? vidP.GetString() ?? "" : "";
                         if (modloader == "None") modloader = "fabric";
 
                         // [SECURITY FIX CRIT-1] Canonicalize instance path to prevent traversal
@@ -531,13 +597,29 @@ namespace StrafeClient
                                     var pMsg = new { type = "progress", taskId = slug, percent = 50, detail = "Baixando .jar..." };
                                     webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(pMsg));
                                 }));
- 
-                                string result = await ModrinthAPI.InstallModAsync(projectId, ver, modloader, instancePath);
+
+                                string result;
+                                if (!string.IsNullOrEmpty(versionId))
+                                    // User picked a specific version — install by exact version id
+                                    result = await ModrinthAPI.InstallModByVersionIdAsync(versionId, instancePath);
+                                else
+                                    // Default: install latest compatible
+                                    result = await ModrinthAPI.InstallModAsync(projectId, ver, modloader, instancePath);
                                 
                                 this.Invoke(new Action(() => {
                                     if (result == "sucesso") {
                                         var sMsg = new { type = "downloadSuccess", taskId = slug, text = $"Mod {slug} baixado!" };
                                         webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(sMsg));
+                                        // Refresh installed mods list
+                                        string modsDir = System.IO.Path.GetFullPath(System.IO.Path.Combine(instancePath, "mods"));
+                                        var mods = new System.Collections.Generic.List<object>();
+                                        if (System.IO.Directory.Exists(modsDir)) {
+                                            foreach (var f in System.IO.Directory.GetFiles(modsDir, "*.jar"))
+                                                mods.Add(new { filename = System.IO.Path.GetFileName(f), path = f, enabled = true });
+                                            foreach (var f in System.IO.Directory.GetFiles(modsDir, "*.jar.disabled"))
+                                                mods.Add(new { filename = System.IO.Path.GetFileNameWithoutExtension(f), path = f, enabled = false });
+                                        }
+                                        webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(new { type = "instanceMods", list = mods }));
                                     } else {
                                         var eMsg = new { type = "downloadError", taskId = slug, text = result };
                                         webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(eMsg));
@@ -553,6 +635,7 @@ namespace StrafeClient
                             }
                         });
                     }
+
                     else if (action == "buildModpack")
                     {
                         string name = root.GetProperty("name").GetString();
@@ -728,6 +811,249 @@ namespace StrafeClient
                         {
                             SendErrorToWeb("Erro ao abrir pasta: " + ex.Message, ex);
                         }
+                    }
+                    else if (action == "getInstanceMods")
+                    {
+                        try
+                        {
+                            string name = root.GetProperty("instanceName").GetString() ?? "";
+                            string instanceBase = InstanceManager.SafeResolvePath(name);
+                            string modsDir = System.IO.Path.Combine(instanceBase, "mods");
+                            var mods = new System.Collections.Generic.List<object>();
+                            if (System.IO.Directory.Exists(modsDir))
+                            {
+                                // Active mods (.jar)
+                                foreach (var file in System.IO.Directory.GetFiles(modsDir, "*.jar"))
+                                {
+                                    mods.Add(new {
+                                        filename = System.IO.Path.GetFileName(file),
+                                        path = file,
+                                        enabled = true
+                                    });
+                                }
+                                // Disabled mods (.jar.disabled)
+                                foreach (var file in System.IO.Directory.GetFiles(modsDir, "*.jar.disabled"))
+                                {
+                                    mods.Add(new {
+                                        filename = System.IO.Path.GetFileNameWithoutExtension(file), // removes .disabled
+                                        path = file,
+                                        enabled = false
+                                    });
+                                }
+                            }
+                            var msg = new { type = "instanceMods", list = mods };
+                            webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(msg));
+                        }
+                        catch (Exception ex)
+                        {
+                            SendErrorToWeb("Erro ao listar mods: " + ex.Message, ex);
+                        }
+                    }
+                    else if (action == "toggleMod")
+                    {
+                        try
+                        {
+                            string instanceName = root.GetProperty("instanceName").GetString() ?? "";
+                            string filePath = root.GetProperty("filePath").GetString() ?? "";
+                            bool currentlyEnabled = root.GetProperty("enabled").GetBoolean();
+
+                            // Validate: file must be inside the instance mods directory
+                            string instanceBase = InstanceManager.SafeResolvePath(instanceName);
+                            string modsDir = System.IO.Path.GetFullPath(System.IO.Path.Combine(instanceBase, "mods"));
+                            string fullFilePath = System.IO.Path.GetFullPath(filePath);
+
+                            if (!fullFilePath.StartsWith(modsDir + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                                throw new System.Security.SecurityException("Path traversal detectado no toggleMod.");
+
+                            if (!System.IO.File.Exists(fullFilePath))
+                                throw new Exception("Arquivo não encontrado.");
+
+                            string newPath;
+                            if (currentlyEnabled)
+                            {
+                                // Disable: rename .jar -> .jar.disabled
+                                newPath = fullFilePath + ".disabled";
+                            }
+                            else
+                            {
+                                // Enable: rename .jar.disabled -> .jar (strip .disabled)
+                                newPath = fullFilePath.Substring(0, fullFilePath.Length - ".disabled".Length);
+                            }
+
+                            System.IO.File.Move(fullFilePath, newPath, overwrite: false);
+
+                            // Re-send updated list
+                            var mods = new System.Collections.Generic.List<object>();
+                            foreach (var file in System.IO.Directory.GetFiles(modsDir, "*.jar"))
+                                mods.Add(new { filename = System.IO.Path.GetFileName(file), path = file, enabled = true });
+                            foreach (var file in System.IO.Directory.GetFiles(modsDir, "*.jar.disabled"))
+                                mods.Add(new { filename = System.IO.Path.GetFileNameWithoutExtension(file), path = file, enabled = false });
+
+                            var msg = new { type = "instanceMods", list = mods };
+                            webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(msg));
+                        }
+                        catch (Exception ex)
+                        {
+                            SendErrorToWeb("Erro ao alternar mod: " + ex.Message, ex);
+                        }
+                    }
+                    else if (action == "removeMod")
+                    {
+                        try
+                        {
+                            string instanceName = root.GetProperty("instanceName").GetString() ?? "";
+                            string filePath = root.GetProperty("filePath").GetString() ?? "";
+
+                            // Validate: file must be inside the instance mods directory
+                            string instanceBase = InstanceManager.SafeResolvePath(instanceName);
+                            string modsDir = System.IO.Path.GetFullPath(System.IO.Path.Combine(instanceBase, "mods"));
+                            string fullFilePath = System.IO.Path.GetFullPath(filePath);
+
+                            if (!fullFilePath.StartsWith(modsDir + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                                throw new System.Security.SecurityException("Path traversal detectado no removeMod.");
+
+                            // Only allow .jar and .jar.disabled extensions
+                            string ext = System.IO.Path.GetExtension(fullFilePath).ToLowerInvariant();
+                            string extWithoutDisabled = System.IO.Path.GetExtension(
+                                System.IO.Path.GetFileNameWithoutExtension(fullFilePath)).ToLowerInvariant();
+                            bool isValidExt = ext == ".jar" || (ext == ".disabled" && extWithoutDisabled == ".jar");
+                            if (!isValidExt)
+                                throw new Exception("Tipo de arquivo não permitido.");
+
+                            if (System.IO.File.Exists(fullFilePath))
+                                System.IO.File.Delete(fullFilePath);
+
+                            // Re-send updated list
+                            var mods = new System.Collections.Generic.List<object>();
+                            if (System.IO.Directory.Exists(modsDir))
+                            {
+                                foreach (var file in System.IO.Directory.GetFiles(modsDir, "*.jar"))
+                                    mods.Add(new { filename = System.IO.Path.GetFileName(file), path = file, enabled = true });
+                                foreach (var file in System.IO.Directory.GetFiles(modsDir, "*.jar.disabled"))
+                                    mods.Add(new { filename = System.IO.Path.GetFileNameWithoutExtension(file), path = file, enabled = false });
+                            }
+
+                            var msg = new { type = "instanceMods", list = mods };
+                            webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(msg));
+                        }
+                        catch (Exception ex)
+                        {
+                            SendErrorToWeb("Erro ao remover mod: " + ex.Message, ex);
+                        }
+                    }
+                    else if (action == "exportInstance")
+                    {
+                        try
+                        {
+                            string instanceName = root.GetProperty("instanceName").GetString() ?? "";
+                            string instanceBase = InstanceManager.SafeResolvePath(instanceName);
+                            string modsDir = System.IO.Path.Combine(instanceBase, "mods");
+
+                            // Sanitize name for filename
+                            string safeFileName = string.Join("_", instanceName.Split(System.IO.Path.GetInvalidFileNameChars()));
+                            string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                            string zipPath = System.IO.Path.Combine(desktopPath, $"{safeFileName}.brlauncher");
+
+                            // Remove previous export if exists
+                            if (System.IO.File.Exists(zipPath))
+                                System.IO.File.Delete(zipPath);
+
+                            using (var archive = System.IO.Compression.ZipFile.Open(zipPath, System.IO.Compression.ZipArchiveMode.Create))
+                            {
+                                // Add instance.json
+                                string jsonPath = System.IO.Path.Combine(instanceBase, "instance.json");
+                                if (System.IO.File.Exists(jsonPath))
+                                    archive.CreateEntryFromFile(jsonPath, "instance.json", System.IO.Compression.CompressionLevel.Optimal);
+
+                                // Add all .jar mods (active + disabled)
+                                if (System.IO.Directory.Exists(modsDir))
+                                {
+                                    foreach (var jar in System.IO.Directory.GetFiles(modsDir, "*.jar"))
+                                        archive.CreateEntryFromFile(jar, "mods/" + System.IO.Path.GetFileName(jar), System.IO.Compression.CompressionLevel.Optimal);
+                                    foreach (var jar in System.IO.Directory.GetFiles(modsDir, "*.jar.disabled"))
+                                        archive.CreateEntryFromFile(jar, "mods/" + System.IO.Path.GetFileName(jar), System.IO.Compression.CompressionLevel.Optimal);
+                                }
+                            }
+
+                            int modCount = System.IO.Directory.Exists(modsDir)
+                                ? System.IO.Directory.GetFiles(modsDir, "*.jar").Length + System.IO.Directory.GetFiles(modsDir, "*.jar.disabled").Length
+                                : 0;
+
+                            var successMsg = new { type = "exportInstanceResult", success = true, path = zipPath, modCount };
+                            webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(successMsg));
+                        }
+                        catch (Exception ex)
+                        {
+                            var failMsg = new { type = "exportInstanceResult", success = false, error = ex.Message };
+                            webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(failMsg));
+                        }
+                    }
+                    else if (action == "importInstance")
+                    {
+                        // Must run on UI thread (OpenFileDialog)
+                        this.Invoke((Action)(() =>
+                        {
+                            try
+                            {
+                                string targetInstance = root.GetProperty("instanceName").GetString() ?? "";
+                                string instanceBase = InstanceManager.SafeResolvePath(targetInstance);
+                                string modsDir = System.IO.Path.Combine(instanceBase, "mods");
+
+                                using var dlg = new OpenFileDialog
+                                {
+                                    Title = "Selecionar pacote de mods (.brlauncher)",
+                                    Filter = "Pacote de Instância (*.brlauncher)|*.brlauncher|ZIP (*.zip)|*.zip",
+                                    Multiselect = false
+                                };
+
+                                if (dlg.ShowDialog(this) != DialogResult.OK)
+                                {
+                                    var cancelMsg = new { type = "importInstanceResult", success = false, cancelled = true };
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(cancelMsg));
+                                    return;
+                                }
+
+                                string zipPath = dlg.FileName;
+                                Directory.CreateDirectory(modsDir);
+
+                                int imported = 0;
+                                using (var archive = System.IO.Compression.ZipFile.OpenRead(zipPath))
+                                {
+                                    foreach (var entry in archive.Entries)
+                                    {
+                                        // Only extract files inside the mods/ folder
+                                        if (!entry.FullName.StartsWith("mods/", StringComparison.OrdinalIgnoreCase))
+                                            continue;
+
+                                        string fileName = System.IO.Path.GetFileName(entry.FullName);
+                                        if (string.IsNullOrEmpty(fileName)) continue;
+
+                                        // Validate extension
+                                        string entryExt = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
+                                        string innerExt = System.IO.Path.GetExtension(System.IO.Path.GetFileNameWithoutExtension(fileName)).ToLowerInvariant();
+                                        bool validExt = entryExt == ".jar" || (entryExt == ".disabled" && innerExt == ".jar");
+                                        if (!validExt) continue;
+
+                                        string destPath = System.IO.Path.Combine(modsDir, fileName);
+                                        // Safety: ensure dest is still within modsDir
+                                        string fullDest = System.IO.Path.GetFullPath(destPath);
+                                        if (!fullDest.StartsWith(System.IO.Path.GetFullPath(modsDir) + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                                            continue;
+
+                                        entry.ExtractToFile(destPath, overwrite: true);
+                                        imported++;
+                                    }
+                                }
+
+                                var resultMsg = new { type = "importInstanceResult", success = true, instanceName = targetInstance, modCount = imported };
+                                webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(resultMsg));
+                            }
+                            catch (Exception ex)
+                            {
+                                var failMsg = new { type = "importInstanceResult", success = false, error = ex.Message };
+                                webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(failMsg));
+                            }
+                        }));
                     }
                 }
             }

@@ -1,4 +1,0 @@
-2026/06/06-00:55:09.673 4830 Creating DB C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\Local Storage\leveldb since it was missing.
-2026/06/06-00:55:09.704 4830 Reusing MANIFEST C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\Local Storage\leveldb/MANIFEST-000001
-2026/06/06-00:55:09.706 4830 Recovering log #3
-2026/06/06-00:55:09.709 4830 Reusing old log C:\Users\d9light\Documents\BrLauncher\Publish\StrafeClient.exe.WebView2\EBWebView\Default\Local Storage\leveldb/000003.log 

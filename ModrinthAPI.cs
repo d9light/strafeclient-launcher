@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -102,6 +102,52 @@ namespace StrafeClient
             catch (Exception ex)
             {
                 Console.WriteLine($"Erro ao instalar mod: {ex.Message}");
+                return ex.Message;
+            }
+        }
+        public static async Task<string> InstallModByVersionIdAsync(string versionId, string instancePath)
+        {
+            try
+            {
+                string url = $"https://api.modrinth.com/v2/version/{versionId}";
+                HttpResponseMessage response = await client.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                string json = await response.Content.ReadAsStringAsync();
+
+                using JsonDocument doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("files", out var files) && files.GetArrayLength() > 0)
+                {
+                    // Prefer the primary file; fall back to [0]
+                    JsonElement chosen = files[0];
+                    foreach (var f in files.EnumerateArray())
+                    {
+                        if (f.TryGetProperty("primary", out var pProp) && pProp.GetBoolean())
+                        {
+                            chosen = f;
+                            break;
+                        }
+                    }
+
+                    string downloadUrl = chosen.GetProperty("url").GetString();
+                    string filename    = chosen.GetProperty("filename").GetString();
+
+                    string modsDir  = System.IO.Path.Combine(instancePath, "mods");
+                    System.IO.Directory.CreateDirectory(modsDir);
+
+                    string filePath = System.IO.Path.Combine(modsDir, filename);
+                    byte[] fileBytes = await client.GetByteArrayAsync(downloadUrl);
+                    await System.IO.File.WriteAllBytesAsync(filePath, fileBytes);
+
+                    return "sucesso";
+                }
+
+                return "Nenhum arquivo encontrado para a versão selecionada.";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao instalar mod por versão: {ex.Message}");
                 return ex.Message;
             }
         }
