@@ -16,6 +16,7 @@ namespace StrafeClient
         public string Username { get; set; }
         public string Type { get; set; } // "Offline" ou "Microsoft"
         public string Token { get; set; }
+        public string RefreshToken { get; set; }
         public bool IsMicrosoft { get; set; }
         public string UUID { get; set; }
     }
@@ -53,6 +54,7 @@ namespace StrafeClient
                     foreach (var acc in data.Accounts)
                     {
                         acc.Token = DecryptToken(acc.Token ?? "");
+                        acc.RefreshToken = DecryptToken(acc.RefreshToken ?? "");
                     }
                 }
                 catch
@@ -87,7 +89,8 @@ namespace StrafeClient
                     IsMicrosoft = acc.IsMicrosoft,
                     UUID = acc.UUID,
                     // Encrypt non-empty tokens with DPAPI
-                    Token = string.IsNullOrEmpty(acc.Token) ? "" : EncryptToken(acc.Token)
+                    Token = string.IsNullOrEmpty(acc.Token) ? "" : EncryptToken(acc.Token),
+                    RefreshToken = string.IsNullOrEmpty(acc.RefreshToken) ? "" : EncryptToken(acc.RefreshToken)
                 });
             }
             
@@ -98,6 +101,7 @@ namespace StrafeClient
         // [SECURITY] Encrypt a plaintext token using Windows DPAPI (per-user scope)
         private static string EncryptToken(string plaintext)
         {
+            if (string.IsNullOrEmpty(plaintext)) return "";
             try
             {
                 byte[] data = Encoding.UTF8.GetBytes(plaintext);
@@ -106,8 +110,8 @@ namespace StrafeClient
             }
             catch
             {
-                // Fallback: save plaintext if DPAPI fails (e.g., running as service)
-                return plaintext;
+                // Throw instead of saving plaintext to avoid security downgrade
+                throw new CryptographicException("Failed to encrypt token.");
             }
         }
 
@@ -123,8 +127,8 @@ namespace StrafeClient
             }
             catch
             {
-                // If decryption fails, the token might be plaintext from an old version
-                return ciphertext;
+                // If decryption fails, the token is considered invalid/lost
+                return null;
             }
         }
 
@@ -217,7 +221,7 @@ namespace StrafeClient
             SaveAccounts();
         }
 
-        public static async Task<MSession> LoginMicrosoftAsync(string authCode)
+        public static async Task<MicrosoftAuthResult> LoginMicrosoftAsync(string authCode)
         {
             return await MicrosoftAuthHelper.AuthenticateWithAuthCode(authCode);
         }

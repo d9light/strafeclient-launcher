@@ -1,0 +1,21 @@
+[06/06/2026 01:19:55] Erro ao deletar: Access to the path 'saves' is denied.
+   at System.IO.FileSystem.RemoveDirectoryRecursive(String fullPath, WIN32_FIND_DATA& findData, Boolean topLevel)
+   at System.IO.FileSystem.RemoveDirectory(String fullPath, Boolean recursive)
+   at System.IO.Directory.Delete(String path, Boolean recursive)
+   at StrafeClient.InstanceManager.DeleteInstance(String name) in C:\Users\d9light\Documents\BrLauncher\InstanceManager.cs:line 192
+   at StrafeClient.LauncherForm.WebView_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs e) in C:\Users\d9light\Documents\BrLauncher\LauncherForm.cs:line 418
+
+[06/06/2026 01:19:59] Erro ao deletar: Access to the path 'resourcepacks' is denied.
+   at System.IO.FileSystem.RemoveDirectoryRecursive(String fullPath, WIN32_FIND_DATA& findData, Boolean topLevel)
+   at System.IO.FileSystem.RemoveDirectory(String fullPath, Boolean recursive)
+   at System.IO.Directory.Delete(String path, Boolean recursive)
+   at StrafeClient.InstanceManager.DeleteInstance(String name) in C:\Users\d9light\Documents\BrLauncher\InstanceManager.cs:line 192
+   at StrafeClient.LauncherForm.WebView_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs e) in C:\Users\d9light\Documents\BrLauncher\LauncherForm.cs:line 418
+
+[06/06/2026 01:24:27] Erro ao deletar: Access to the path 'resourcepacks' is denied.
+   at System.IO.FileSystem.RemoveDirectoryRecursive(String fullPath, WIN32_FIND_DATA& findData, Boolean topLevel)
+   at System.IO.FileSystem.RemoveDirectory(String fullPath, Boolean recursive)
+   at System.IO.Directory.Delete(String path, Boolean recursive)
+   at StrafeClient.InstanceManager.DeleteInstance(String name) in C:\Users\d9light\Documents\BrLauncher\InstanceManager.cs:line 192
+   at StrafeClient.LauncherForm.WebView_WebMessageReceived(Object sender, CoreWebView2WebMessageReceivedEventArgs e) in C:\Users\d9light\Documents\BrLauncher\LauncherForm.cs:line 418
+

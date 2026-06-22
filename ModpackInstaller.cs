@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
@@ -17,6 +17,34 @@ namespace StrafeClient
         static ModpackInstaller()
         {
             client.DefaultRequestHeaders.Add("User-Agent", "StrafeClient/1.0 (contact@brlauncher.com)");
+        }
+
+        private static async Task DownloadFileWithProgressAsync(string url, string destinationPath, Action<int> progressCallback)
+        {
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+            long? totalBytes = response.Content.Headers.ContentLength;
+            await using var contentStream = await response.Content.ReadAsStreamAsync();
+            await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+            
+            var buffer = new byte[8192];
+            long totalRead = 0;
+            int bytesRead;
+            int lastPercent = -1;
+            while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                await fileStream.WriteAsync(buffer, 0, bytesRead);
+                totalRead += bytesRead;
+                if (totalBytes.HasValue)
+                {
+                    int percent = (int)(totalRead * 100 / totalBytes.Value);
+                    if (percent != lastPercent)
+                    {
+                        lastPercent = percent;
+                        progressCallback?.Invoke(percent);
+                    }
+                }
+            }
         }
 
         public static async Task<string> InstallModpackAsync(string projectId, string slug, Action<int, string> progressCallback)
@@ -56,15 +84,40 @@ namespace StrafeClient
                 progressCallback(10, "Baixando arquivo .mrpack...");
                 tempZipPath = Path.Combine(Path.GetTempPath(), $"{projectId}.mrpack");
                 
-                byte[] mrpackBytes = await client.GetByteArrayAsync(downloadUrl);
-                await File.WriteAllBytesAsync(tempZipPath, mrpackBytes);
+                await DownloadFileWithProgressAsync(downloadUrl, tempZipPath, p => {
+                    progressCallback(10 + (p * 5 / 100), $"Baixando arquivo .mrpack ({p}%)...");
+                });
 
                 progressCallback(15, "Extraindo pacote...");
                 extractPath = Path.Combine(Path.GetTempPath(), $"{projectId}_extracted");
                 if (Directory.Exists(extractPath))
                     Directory.Delete(extractPath, true);
                 
-                ZipFile.ExtractToDirectory(tempZipPath, extractPath);
+                // [SECURITY FIX HIGH-2] Extract zip safely to prevent ZipSlip traversal
+                Directory.CreateDirectory(extractPath);
+                using (var archive = ZipFile.OpenRead(tempZipPath))
+                {
+                    string fullExtractPath = Path.GetFullPath(extractPath);
+                    foreach (var entry in archive.Entries)
+                    {
+                        string destinationPath = Path.GetFullPath(Path.Combine(fullExtractPath, entry.FullName));
+                        if (!destinationPath.StartsWith(fullExtractPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                        {
+                            Console.WriteLine($"[SECURITY] ZipSlip bloqueado: {entry.FullName}");
+                            continue;
+                        }
+                            
+                        if (entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\"))
+                        {
+                            Directory.CreateDirectory(destinationPath);
+                        }
+                        else
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath));
+                            entry.ExtractToFile(destinationPath, true);
+                        }
+                    }
+                }
 
                 string indexJsonPath = Path.Combine(extractPath, "modrinth.index.json");
                 if (!File.Exists(indexJsonPath))
@@ -135,8 +188,7 @@ namespace StrafeClient
                         
                         try 
                         {
-                            byte[] fileData = await client.GetByteArrayAsync(dlUrl);
-                            await File.WriteAllBytesAsync(destPath, fileData);
+                            await DownloadFileWithProgressAsync(dlUrl, destPath, null);
                         }
                         catch (Exception ex)
                         {

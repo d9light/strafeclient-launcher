@@ -228,26 +228,27 @@ namespace StrafeClient
                                     {
                                         try
                                         {
-                                            var session = await AccountManager.LoginMicrosoftAsync(authCode);
+                                            var authResult = await AccountManager.LoginMicrosoftAsync(authCode);
                                             
-                                            if (session != null && !string.IsNullOrEmpty(session.Username))
+                                            if (authResult != null && authResult.Session != null && !string.IsNullOrEmpty(authResult.Session.Username))
                                             {
                                                 string newId = Guid.NewGuid().ToString();
                                                 var accounts = AccountManager.GetAccounts();
-                                                accounts.RemoveAll(a => a.Username == session.Username && a.IsMicrosoft);
+                                                accounts.RemoveAll(a => a.Username == authResult.Session.Username && a.IsMicrosoft);
                                                 accounts.Add(new AccountInfo
                                                 {
                                                     Id = newId,
-                                                    Username = session.Username,
+                                                    Username = authResult.Session.Username,
                                                     Type = "Microsoft",
-                                                    Token = session.AccessToken,
+                                                    Token = authResult.Session.AccessToken,
+                                                    RefreshToken = authResult.RefreshToken,
                                                     IsMicrosoft = true,
-                                                    UUID = session.UUID
+                                                    UUID = authResult.Session.UUID
                                                 });
                                                 AccountManager.SetActiveAccount(newId);
                                                 
                                                 loginSuccess = true;
-                                                nick = session.Username;
+                                                nick = authResult.Session.Username;
                                             }
                                         }
                                         catch (Exception ex)
@@ -636,6 +637,138 @@ namespace StrafeClient
                         });
                     }
 
+                    else if (action == "searchResourcePacks")
+                    {
+                        string query = root.GetProperty("query").GetString();
+                        Task.Run(async () => {
+                            try
+                            {
+                                string resultsJson = await ModrinthAPI.SearchResourcePacksAsync(query);
+                                using JsonDocument doc = JsonDocument.Parse(resultsJson);
+                                var hits = doc.RootElement.GetProperty("hits");
+                                var msg = new { type = "resourcePackResults", results = hits };
+                                this.Invoke(new Action(() => {
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(msg));
+                                }));
+                            }
+                            catch (Exception ex)
+                            {
+                                this.Invoke(new Action(() => SendErrorToWeb("Erro na busca de Resource Packs: " + ex.Message, ex)));
+                            }
+                        });
+                    }
+                    else if (action == "searchShaders")
+                    {
+                        string query = root.GetProperty("query").GetString();
+                        Task.Run(async () => {
+                            try
+                            {
+                                string resultsJson = await ModrinthAPI.SearchShadersAsync(query);
+                                using JsonDocument doc = JsonDocument.Parse(resultsJson);
+                                var hits = doc.RootElement.GetProperty("hits");
+                                var msg = new { type = "shaderResults", results = hits };
+                                this.Invoke(new Action(() => {
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(msg));
+                                }));
+                            }
+                            catch (Exception ex)
+                            {
+                                this.Invoke(new Action(() => SendErrorToWeb("Erro na busca de Shaders: " + ex.Message, ex)));
+                            }
+                        });
+                    }
+                    else if (action == "installResourcePack")
+                    {
+                        string slug = root.GetProperty("slug").GetString() ?? "";
+                        string versionId = root.GetProperty("versionId").GetString() ?? "";
+                        string instanceName = root.GetProperty("instanceName").GetString() ?? "";
+                        string instancePath = InstanceManager.SafeResolvePath(instanceName);
+
+                        Task.Run(async () => {
+                            try
+                            {
+                                this.Invoke(new Action(() => {
+                                    var pMsg = new { type = "progress", taskId = slug, percent = 50, detail = "Baixando resource pack..." };
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(pMsg));
+                                }));
+                                string result = await ModrinthAPI.InstallResourcePackAsync(versionId, instancePath);
+                                this.Invoke(new Action(() => {
+                                    if (result == "sucesso") {
+                                        var sMsg = new { type = "downloadSuccess", taskId = slug, text = $"Resource Pack '{slug}' instalado!" };
+                                        webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(sMsg));
+                                    } else {
+                                        var eMsg = new { type = "downloadError", taskId = slug, text = result };
+                                        webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(eMsg));
+                                    }
+                                }));
+                            }
+                            catch (Exception ex)
+                            {
+                                this.Invoke(new Action(() => {
+                                    var eMsg = new { type = "downloadError", taskId = slug, text = "Erro: " + ex.Message };
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(eMsg));
+                                }));
+                            }
+                        });
+                    }
+                    else if (action == "installShader")
+                    {
+                        string slug = root.GetProperty("slug").GetString() ?? "";
+                        string versionId = root.GetProperty("versionId").GetString() ?? "";
+                        string instanceName = root.GetProperty("instanceName").GetString() ?? "";
+                        string instancePath = InstanceManager.SafeResolvePath(instanceName);
+
+                        // Verificar se a instância tem Iris ou OptiFine
+                        bool hasIris = false;
+                        bool hasOptifine = false;
+                        string modsDir = System.IO.Path.Combine(instancePath, "mods");
+                        if (System.IO.Directory.Exists(modsDir))
+                        {
+                            foreach (var f in System.IO.Directory.GetFiles(modsDir, "*.jar"))
+                            {
+                                string fn = System.IO.Path.GetFileName(f).ToLower();
+                                if (fn.Contains("iris")) hasIris = true;
+                                if (fn.Contains("optifine") || fn.Contains("optifabric")) hasOptifine = true;
+                            }
+                        }
+                        bool hasShaderMod = hasIris || hasOptifine;
+
+                        if (!hasShaderMod)
+                        {
+                            // Avisa o frontend mas ainda permite instalar
+                            this.Invoke(new Action(() => {
+                                var warnMsg = new { type = "shaderWarning", instanceName, slug };
+                                webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(warnMsg));
+                            }));
+                        }
+
+                        Task.Run(async () => {
+                            try
+                            {
+                                this.Invoke(new Action(() => {
+                                    var pMsg = new { type = "progress", taskId = slug, percent = 50, detail = "Baixando shader..." };
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(pMsg));
+                                }));
+                                string result = await ModrinthAPI.InstallShaderAsync(versionId, instancePath);
+                                this.Invoke(new Action(() => {
+                                    if (result == "sucesso") {
+                                        var sMsg = new { type = "downloadSuccess", taskId = slug, text = $"Shader '{slug}' instalado!" };
+                                        webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(sMsg));
+                                    } else {
+                                        var eMsg = new { type = "downloadError", taskId = slug, text = result };
+                                        webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(eMsg));
+                                    }
+                                }));
+                            }
+                            catch (Exception ex)
+                            {
+                                this.Invoke(new Action(() => {
+                                    var eMsg = new { type = "downloadError", taskId = slug, text = "Erro: " + ex.Message };
+                                    webView.CoreWebView2.PostWebMessageAsString(JsonSerializer.Serialize(eMsg));
+                                }));
+                            }
+                        });
+                    }
                     else if (action == "buildModpack")
                     {
                         string name = root.GetProperty("name").GetString();
@@ -952,7 +1085,7 @@ namespace StrafeClient
                             // Sanitize name for filename
                             string safeFileName = string.Join("_", instanceName.Split(System.IO.Path.GetInvalidFileNameChars()));
                             string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                            string zipPath = System.IO.Path.Combine(desktopPath, $"{safeFileName}.brlauncher");
+                            string zipPath = System.IO.Path.Combine(desktopPath, $"{safeFileName}.zip");
 
                             // Remove previous export if exists
                             if (System.IO.File.Exists(zipPath))
@@ -1001,8 +1134,8 @@ namespace StrafeClient
 
                                 using var dlg = new OpenFileDialog
                                 {
-                                    Title = "Selecionar pacote de mods (.brlauncher)",
-                                    Filter = "Pacote de Instância (*.brlauncher)|*.brlauncher|ZIP (*.zip)|*.zip",
+                                    Title = "Selecionar pacote de mods (.zip)",
+                                    Filter = "Pacote de Instância (*.zip)|*.zip",
                                     Multiselect = false
                                 };
 
@@ -1017,10 +1150,19 @@ namespace StrafeClient
                                 Directory.CreateDirectory(modsDir);
 
                                 int imported = 0;
+                                bool instanceJsonExtracted = false;
                                 using (var archive = System.IO.Compression.ZipFile.OpenRead(zipPath))
                                 {
                                     foreach (var entry in archive.Entries)
                                     {
+                                        if (entry.FullName.Equals("instance.json", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string destPathJson = System.IO.Path.Combine(instanceBase, "instance.json");
+                                            entry.ExtractToFile(destPathJson, overwrite: true);
+                                            instanceJsonExtracted = true;
+                                            continue;
+                                        }
+
                                         // Only extract files inside the mods/ folder
                                         if (!entry.FullName.StartsWith("mods/", StringComparison.OrdinalIgnoreCase))
                                             continue;
@@ -1043,6 +1185,32 @@ namespace StrafeClient
                                         entry.ExtractToFile(destPath, overwrite: true);
                                         imported++;
                                     }
+                                }
+
+                                if (instanceJsonExtracted)
+                                {
+                                    string destPathJson = System.IO.Path.Combine(instanceBase, "instance.json");
+                                    string json = System.IO.File.ReadAllText(destPathJson);
+                                    var info = JsonSerializer.Deserialize<InstanceInfo>(json);
+                                    if (info != null)
+                                    {
+                                        info.Name = targetInstance;
+                                        System.IO.File.WriteAllText(destPathJson, JsonSerializer.Serialize(info, new JsonSerializerOptions { WriteIndented = true }));
+                                    }
+                                }
+                                else
+                                {
+                                    var info = new InstanceInfo
+                                    {
+                                        Name = targetInstance,
+                                        MinecraftVersion = "1.20.1",
+                                        Modloader = "Fabric",
+                                        SyncVanillaWorlds = true,
+                                        EnableOptimization = true,
+                                        CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                                    };
+                                    string destPathJson = System.IO.Path.Combine(instanceBase, "instance.json");
+                                    System.IO.File.WriteAllText(destPathJson, JsonSerializer.Serialize(info, new JsonSerializerOptions { WriteIndented = true }));
                                 }
 
                                 var resultMsg = new { type = "importInstanceResult", success = true, instanceName = targetInstance, modCount = imported };
@@ -1416,6 +1584,24 @@ namespace StrafeClient
 
                 if (activeAcc != null && activeAcc.IsMicrosoft)
                 {
+                    if (!string.IsNullOrEmpty(activeAcc.RefreshToken))
+                    {
+                        try
+                        {
+                            SendStatusToWeb("Renovando sessão da Microsoft...");
+                            var newAuth = await MicrosoftAuthHelper.RefreshMicrosoftTokenAsync(activeAcc.RefreshToken);
+                            activeAcc.Token = newAuth.Session.AccessToken;
+                            activeAcc.RefreshToken = newAuth.RefreshToken;
+                            AccountManager.SaveAccounts();
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Erro ao renovar token (tentando prosseguir com token atual): " + ex.Message);
+                            SendErrorToWeb("Sua sessão da Microsoft expirou ou é inválida. Por favor, remova sua conta e adicione-a novamente para poder jogar Multiplayer e abrir em LAN.");
+                            return;
+                        }
+                    }
+
                     session = new MSession { 
                         Username = activeAcc.Username, 
                         AccessToken = activeAcc.Token, 
@@ -1549,8 +1735,9 @@ namespace StrafeClient
                     argsStr = $"-javaagent:\"{authlibPath}\"=https://brlaucher-api.vercel.app/api/yggdrasil " + argsStr.Trim();
                 }
 
-                // PASSO 3: Remover arg incompativel
+                // PASSO 3: Remover arg incompativel e forçar IPv4 para LAN
                 argsStr = argsStr.Replace("--sun-misc-unsafe-memory-access=allow", "");
+                argsStr = "-Djava.net.preferIPv4Stack=true " + argsStr;
 
                 // =========================================================
                 // PASSO 4: AIKAR'S FLAGS — INJEÇÃO DIRETA ANTES DA MAIN CLASS

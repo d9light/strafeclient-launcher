@@ -186,47 +186,58 @@ namespace StrafeClient
         // ============================================================
         public static void ApplyUpdate(string newExePath)
         {
+            // [SECURITY FIX HIGH-1] Validar se o arquivo baixado é realmente um executável PE (MZ header)
+            // Impede execução de HTML (páginas de erro de proxy/CDN) ou arquivos corrompidos.
+            // Para maior segurança, implemente checagem Authenticode com: X509Certificate.CreateFromSignedFile
+            try
+            {
+                using var fs = new FileStream(newExePath, FileMode.Open, FileAccess.Read);
+                var header = new byte[2];
+                fs.Read(header, 0, 2);
+                if (header[0] != 0x4D || header[1] != 0x5A) // 'M' 'Z'
+                {
+                    System.Diagnostics.Debug.WriteLine("O arquivo baixado não é um executável válido.");
+                    return;
+                }
+            }
+            catch { return; }
+
             string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "StrafeClient.exe");
             string exeDir = Path.GetDirectoryName(currentExe) ?? AppDomain.CurrentDomain.BaseDirectory;
-            string updaterPath = Path.Combine(exeDir, "updater.bat");
+            string updaterPath = Path.Combine(exeDir, "updater.ps1");
             string exeName = Path.GetFileName(currentExe);
+            string processName = Path.GetFileNameWithoutExtension(exeName);
 
-            // Script que aguarda o processo fechar, substitui o exe e reinicia
-            string script = $@"@echo off
-title Strafe Client - Atualizando...
-echo Aguardando o {exeName} fechar...
-timeout /t 2 /nobreak >nul
+            // Script PowerShell oculto que aguarda o processo fechar, substitui o exe e reinicia
+            string script = $@"
+$ErrorActionPreference = 'SilentlyContinue'
+$processName = '{processName}'
+$currentExe = '{currentExe}'
+$newExePath = '{newExePath}'
 
-:wait_loop
-tasklist /FI ""IMAGENAME eq {exeName}"" 2>nul | find /I ""{exeName}"" >nul
-if not errorlevel 1 (
-    timeout /t 1 /nobreak >nul
-    goto wait_loop
-)
+$timeout = 15
+while ((Get-Process -Name $processName -ErrorAction SilentlyContinue) -and $timeout -gt 0) {{
+    Start-Sleep -Seconds 1
+    $timeout--
+}}
 
-echo Aplicando atualizacao...
-move /Y ""{newExePath}"" ""{currentExe}"" >nul
-if errorlevel 1 (
-    echo ERRO: Nao foi possivel substituir o executavel.
-    pause
-    goto end
-)
+Move-Item -Path $newExePath -Destination $currentExe -Force
 
-echo Reiniciando o Strafe Client...
-start """" ""{currentExe}""
+if (Test-Path $currentExe) {{
+    Start-Process -FilePath $currentExe
+}}
 
-:end
-del ""%~f0""
+Remove-Item -Path $PSCommandPath -Force
 ";
+            File.WriteAllText(updaterPath, script, System.Text.Encoding.UTF8);
 
-            File.WriteAllText(updaterPath, script, System.Text.Encoding.ASCII);
-
-            // Lança o updater.bat diretamente (UseShellExecute abre o .bat sem precisar de cmd.exe)
+            // Inicia o powershell oculto
             Process.Start(new ProcessStartInfo
             {
-                FileName = updaterPath,
-                UseShellExecute = true,
-                WindowStyle = ProcessWindowStyle.Minimized,
+                FileName = "powershell.exe",
+                Arguments = $"-ExecutionPolicy Bypass -WindowStyle Hidden -File \"{updaterPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
             });
         }
 

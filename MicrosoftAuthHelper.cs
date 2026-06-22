@@ -8,6 +8,12 @@ using CmlLib.Core.Auth;
 
 namespace StrafeClient
 {
+    public class MicrosoftAuthResult
+    {
+        public MSession Session { get; set; }
+        public string RefreshToken { get; set; }
+    }
+
     public class MicrosoftAuthHelper
     {
         private static readonly HttpClient client = new HttpClient();
@@ -23,7 +29,7 @@ namespace StrafeClient
             return $"https://login.live.com/oauth20_authorize.srf?client_id={ClientId}&response_type=code&redirect_uri=https://login.live.com/oauth20_desktop.srf&scope=XboxLive.signin%20offline_access";
         }
 
-        public static async Task<MSession> AuthenticateWithAuthCode(string authCode)
+        public static async Task<MicrosoftAuthResult> AuthenticateWithAuthCode(string authCode)
         {
             // 1. Obter Token (Auth Code -> Access Token)
             var tokenRequest = new FormUrlEncodedContent(new[]
@@ -44,7 +50,32 @@ namespace StrafeClient
             string accessToken = tokenJson.RootElement.GetProperty("access_token").GetString();
             string refreshToken = tokenJson.RootElement.GetProperty("refresh_token").GetString();
 
-            return await AuthenticateWithMsaToken(accessToken);
+            var session = await AuthenticateWithMsaToken(accessToken);
+            return new MicrosoftAuthResult { Session = session, RefreshToken = refreshToken };
+        }
+
+        public static async Task<MicrosoftAuthResult> RefreshMicrosoftTokenAsync(string refreshToken)
+        {
+            var tokenRequest = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("client_id", ClientId),
+                new KeyValuePair<string, string>("grant_type", "refresh_token"),
+                new KeyValuePair<string, string>("refresh_token", refreshToken),
+                new KeyValuePair<string, string>("redirect_uri", "https://login.live.com/oauth20_desktop.srf")
+            });
+
+            var tokenRes = await client.PostAsync("https://login.live.com/oauth20_token.srf", tokenRequest);
+            var responseString = await tokenRes.Content.ReadAsStringAsync();
+            if (!tokenRes.IsSuccessStatusCode)
+            {
+                throw new Exception("Erro Refresh Token: " + responseString);
+            }
+            var tokenJson = JsonDocument.Parse(responseString);
+            string newAccessToken = tokenJson.RootElement.GetProperty("access_token").GetString();
+            string newRefreshToken = tokenJson.RootElement.GetProperty("refresh_token").GetString();
+
+            var session = await AuthenticateWithMsaToken(newAccessToken);
+            return new MicrosoftAuthResult { Session = session, RefreshToken = newRefreshToken };
         }
 
         public static async Task<MSession> AuthenticateWithMsaToken(string msaAccessToken)
